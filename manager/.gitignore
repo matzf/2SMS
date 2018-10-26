@@ -1,0 +1,5 @@
+*.json
+approved_certs/
+auth/
+waiting_csrs/
+ca/

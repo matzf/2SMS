@@ -1,0 +1,7 @@
+*.json
+*.crt
+*.csr
+*.key
+*.csv
+ca_certs/
+node-exporter/out
