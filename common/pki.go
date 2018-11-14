@@ -76,7 +76,7 @@ func getCert(resp *http.Response, certFile string) {
 }
 
 func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csrFile string, typ, ip string) {
-	// If not present request certificate from manager and poll until provided
+	// If not present request certificate from manager and try until provided
 	caCertPool, err := NewCertPoolFromDir(caCertsDir)
 	if err != nil {
 		log.Fatal(err)
@@ -108,11 +108,11 @@ func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csr
 	}
 	defer resp.Body.Close()
 	getCert(resp, certFile)
-	// Repeatedly try to get the certificate
+	// Repeatedly try to request the certificate
 	for !FileExists(certFile) {
 		time.Sleep(30 * time.Second)
 		log.Println("Trying to get certificate")
-		resp, err = client.Get("https://" + managerAddress + ":" + managerPort + "/certificates/"+ typ + "/" + ip + "/get")
+		resp, err := client.Post("https://" + managerAddress + ":" + managerPort + "/certificate/request", "application/base64", bytes.NewBuffer(data))
 		if err != nil {
 			log.Fatal(err)
 		}
