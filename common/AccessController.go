@@ -8,7 +8,7 @@ import (
 	"strings"
 	"github.com/pkg/errors"
 	"log"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"sync"
 	"io/ioutil"
 	"encoding/json"

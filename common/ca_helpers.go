@@ -17,7 +17,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"encoding/json"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 )
 
 // TODO: check type and handle errors

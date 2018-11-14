@@ -14,7 +14,7 @@ import (
 	"github.com/juagargi/temp_squic"
 	"io/ioutil"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/cert_srv/conf"
 )
 

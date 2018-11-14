@@ -10,7 +10,7 @@ import (
 	"os"
 	"encoding/json"
 
-	"github.com/baehless/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common"
 
 	"github.com/gorilla/mux"
 	"crypto/ecdsa"
@@ -19,7 +19,7 @@ import (
 	"net"
 	"github.com/scionproto/scion/go/lib/snet"
 	sd "github.com/scionproto/scion/go/lib/sciond"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"bytes"
 	"io/ioutil"
 	"errors"

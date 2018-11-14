@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 )
 
 func InitInternalMappings(nodeListenPort, genFolder string) []types.Mapping {

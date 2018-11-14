@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"time"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"encoding/json"
 	"github.com/scionproto/scion/go/lib/crypto"
 )

@@ -12,7 +12,7 @@ import (
 	"os"
 	"crypto/tls"
 
-	"github.com/baehless/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common"
 
 	"github.com/gorilla/mux"
 
@@ -25,7 +25,7 @@ import (
 
 	"sync"
 	"bytes"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"crypto/x509"
 	"crypto/ecdsa"
 	"crypto/x509/pkix"

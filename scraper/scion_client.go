@@ -4,7 +4,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"net/http"
 	"strings"
-	"github.com/baehless/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common"
 	"github.com/scionproto/scion/go/lib/spath"
 	"log"
 	"time"
@@ -12,7 +12,7 @@ import (
 	"errors"
 	"github.com/lucas-clemente/quic-go"
 	"encoding/gob"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/lucas-clemente/quic-go/qerr"
 	"net"
 )

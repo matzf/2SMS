@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/prometheus/config"
 	"encoding/json"
 	"net/url"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	config2 "github.com/prometheus/common/config"
 	"io/ioutil"
 )

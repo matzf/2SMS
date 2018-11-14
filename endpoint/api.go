@@ -1,15 +1,15 @@
 package main
 
 import (
-	"net/http"
-	"log"
-	"encoding/json"
-	"io/ioutil"
-	"github.com/baehless/2SMS/common"
-	"github.com/baehless/2SMS/common/types"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common/types"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"strings"
 )
 
@@ -94,8 +94,8 @@ func addScraperPermissions(resp *http.Response, mapping string) {
 	err = json.Unmarshal(data, &addedToScrapers)
 	// TODO: handle error
 	for _, scr := range addedToScrapers {
-		accessController.AddRole(scr.IA + ":" + scr.IP, mapping[1:] + "_" + common.OwnerRole)
-		accessController.AllowSource(scr.IA + ":" + scr.IP, mapping)
+		accessController.AddRole(scr.IA+":"+scr.IP, mapping[1:]+"_"+common.OwnerRole)
+		accessController.AllowSource(scr.IA+":"+scr.IP, mapping)
 	}
 }
 
@@ -190,9 +190,9 @@ func listMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 type MetricInfo struct {
-	Name	string	`json:"name,omitempty"`
-	Type	string	`json:"type,omitempty"`
-	Help	string	`json:"help,omitempty"`
+	Name string `json:"name,omitempty"`
+	Type string `json:"type,omitempty"`
+	Help string `json:"help,omitempty"`
 }
 
 func listSourceRoles(w http.ResponseWriter, r *http.Request) {
@@ -247,7 +247,7 @@ func removeSourceRole(w http.ResponseWriter, r *http.Request) {
 func blockSource(w http.ResponseWriter, r *http.Request) {
 	source := mux.Vars(r)["source"]
 	mapping := mux.Vars(r)["mapping"]
-	accessController.BlockSource(source, "/" + mapping)
+	accessController.BlockSource(source, "/"+mapping)
 	w.WriteHeader(204)
 }
 
@@ -255,7 +255,7 @@ func blockSource(w http.ResponseWriter, r *http.Request) {
 func enableSource(w http.ResponseWriter, r *http.Request) {
 	source := mux.Vars(r)["source"]
 	mapping := mux.Vars(r)["mapping"]
-	accessController.AllowSource(source, "/" + mapping)
+	accessController.AllowSource(source, "/"+mapping)
 	w.WriteHeader(204)
 }
 
@@ -269,7 +269,7 @@ func sourceStatus(w http.ResponseWriter, r *http.Request) {
 		for _, perm := range perms {
 			if perm == "scrape" {
 				status.CanScrape = true
-			} else if strings.HasPrefix(perm,"frequency:") {
+			} else if strings.HasPrefix(perm, "frequency:") {
 				status.Frequency = strings.Split(perm, ":")[1]
 
 			} else if strings.HasPrefix(perm, "window:") {
@@ -288,9 +288,9 @@ func sourceStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type Status struct {
-	CanScrape	bool
-	Frequency	string
-	Until		string
+	CanScrape bool
+	Frequency string
+	Until     string
 }
 
 func removeAllSourcePermissions(w http.ResponseWriter, r *http.Request) {
@@ -364,7 +364,7 @@ func getRoleInfo(w http.ResponseWriter, r *http.Request) {
 // Adds all given permissions for a mapping to a role
 func addRolePermissions(w http.ResponseWriter, r *http.Request) {
 	role := mux.Vars(r)["role"]
-	mapping :=  "/" + mux.Vars(r)["mapping"]
+	mapping := "/" + mux.Vars(r)["mapping"]
 	var perms []string
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -384,7 +384,7 @@ func addRolePermissions(w http.ResponseWriter, r *http.Request) {
 
 func removeRolePermissions(w http.ResponseWriter, r *http.Request) {
 	role := mux.Vars(r)["role"]
-	mapping :=  "/" + mux.Vars(r)["mapping"]
+	mapping := "/" + mux.Vars(r)["mapping"]
 	var perms []string
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -404,7 +404,7 @@ func removeRolePermissions(w http.ResponseWriter, r *http.Request) {
 
 func removeSourceFrequency(w http.ResponseWriter, r *http.Request) {
 	source := mux.Vars(r)["source"]
-	mapping :=  "/" + mux.Vars(r)["mapping"]
+	mapping := "/" + mux.Vars(r)["mapping"]
 	accessController.DeleteTimingPermission(source, mapping, "frequency")
 	w.WriteHeader(204)
 }
@@ -427,7 +427,7 @@ func setSourceFrequency(w http.ResponseWriter, r *http.Request) {
 
 func removeSourceWindow(w http.ResponseWriter, r *http.Request) {
 	source := mux.Vars(r)["source"]
-	mapping :=  "/" + mux.Vars(r)["mapping"]
+	mapping := "/" + mux.Vars(r)["mapping"]
 	accessController.DeleteTimingPermission(source, mapping, "window")
 	w.WriteHeader(204)
 }
@@ -448,17 +448,17 @@ func setSourceWindow(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
-func enableAccessControl (w http.ResponseWriter, r *http.Request) {
+func enableAccessControl(w http.ResponseWriter, r *http.Request) {
 	accessController.Enable()
 	w.WriteHeader(204)
 }
 
-func disableAccessControl (w http.ResponseWriter, r *http.Request) {
+func disableAccessControl(w http.ResponseWriter, r *http.Request) {
 	accessController.Disable()
 	w.WriteHeader(204)
 }
 
-func listSources (w http.ResponseWriter, r *http.Request) {
+func listSources(w http.ResponseWriter, r *http.Request) {
 	jsonSources, err := json.Marshal(accessController.GetAllSources())
 	if err != nil {
 		log.Println("Error while marshalling json:", err)

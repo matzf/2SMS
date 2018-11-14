@@ -13,13 +13,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/baehless/2SMS/common"
-	"github.com/baehless/2SMS/scraper/prometheus"
+	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/2SMS/scraper/prometheus"
 
 	"github.com/scionproto/scion/go/lib/snet"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"bytes"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"crypto/x509/pkix"

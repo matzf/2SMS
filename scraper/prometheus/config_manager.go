@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"github.com/prometheus/prometheus/config"
 	"os"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
 	"fmt"
 	"io/ioutil"

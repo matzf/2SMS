@@ -7,14 +7,14 @@ import (
 	"log"
 	"flag"
 	"os"
-	"github.com/baehless/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"crypto/ecdsa"
 	"net"
 	"io/ioutil"
 	"encoding/json"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 

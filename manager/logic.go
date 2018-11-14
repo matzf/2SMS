@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"encoding/json"
-	"github.com/baehless/2SMS/common/types"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
 )
 
