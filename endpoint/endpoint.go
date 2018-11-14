@@ -145,6 +145,7 @@ func init() {
 		bts, _ = common.GenCertSignRequest(name, privKey, []string{endpointDNS}, []net.IP{net.ParseIP(endpointIP)})
 		common.WriteToPEMFile(endpointCSR, "CERTIFICATE REQUEST", bts)
 	}
+	// Request certificate to the manager
 	if !common.FileExists(endpointCert){
 		if managerIP != "" {
 			common.RequestAndObtainCert(caCertsDir, managerIP, managerUnverifPort, endpointCert, endpointCSR, "Endpoint", endpointIP)
