@@ -55,6 +55,7 @@ var (
 	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	isdCoverage string
+	enableQUIC bool
 )
 
 func init() {
@@ -82,7 +83,7 @@ func init() {
 	flag.StringVar(&managerVerifPort, "manager.verif-port", "10001", "port where manager listens for authenticated operations")
 	flag.StringVar(&isdCoverage, "scraper.coverage", "", "comma separated list of ISD numbers for which the scraper should accept targets")
 
-
+	flag.BoolVar(&enableQUIC, "enableQUIC", false, "Determines whether QUIC should be used for scraping")
 	flag.Parse()
 
 	gob.Register(types.Request{})
@@ -191,7 +192,7 @@ func main() {
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalScrapePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient},
+			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC:enableQUIC},
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
@@ -210,7 +211,7 @@ func main() {
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalWritePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient},
+			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC:enableQUIC},
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,

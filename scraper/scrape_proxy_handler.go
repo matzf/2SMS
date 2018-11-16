@@ -13,16 +13,21 @@ import (
 type scraperProxyHandler struct {
 	httpsClient		*http.Client
 	scionClient		*SCIONClient
+	enableQUIC		bool
 }
 
 func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var resp *http.Response
 	var err error
-	// Try tunneling over SCION
-	resp, err = sph.scionClient.TunnelRequest(r)
-	if err != nil {
+	if enableQUIC {
+		// Try tunneling over SCION
+		resp, err = sph.scionClient.TunnelRequest(r)
+	}
+	if err != nil || !enableQUIC {
 		// If that doesn't work use HTTPS
-		log.Println("Target unreachable via SCION:", err, "Fallback to HTTPS.")
+		if err != nil {
+			log.Println("Target unreachable via SCION:", err, "Fallback to HTTPS.")
+		}
 		ip := strings.Split(r.URL.Host, ":")[0]
 		httpPort, err := strconv.Atoi(strings.Split(r.URL.Host, ":")[1])
 		if err != nil {
