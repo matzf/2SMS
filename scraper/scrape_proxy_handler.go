@@ -1,13 +1,13 @@
 package main
 
 import (
-	"net/http"
-	"log"
-	"io/ioutil"
-	"fmt"
 	"errors"
-	"strings"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"strconv"
+	"strings"
 )
 
 type scraperProxyHandler struct {
@@ -27,6 +27,10 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		// If that doesn't work use HTTPS
 		if err != nil {
 			log.Println("Target unreachable via SCION:", err, "Fallback to HTTPS.")
+		}
+		if !enableQUIC {
+			// Remove IA from the target path
+			r.URL.Path = "/" + strings.SplitN(r.URL.Path, "/", 3)[2]
 		}
 		ip := strings.Split(r.URL.Host, ":")[0]
 		httpPort, err := strconv.Atoi(strings.Split(r.URL.Host, ":")[1])
