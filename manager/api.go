@@ -21,8 +21,9 @@ import (
 
 // Requires a CSR, verifies it's validity and, if it is allowed, generates and returns a certificate.
 func requestCert(w http.ResponseWriter, r *http.Request) {
-	log.Println("Certificate request received")
+	log.Printf("Received certificate request from %s\n", r.Host)
 	if refuseSigning {
+		log.Printf("Rejected certificate request from %s: signing is blocked\n", r.Host)
 		w.WriteHeader(401)
 		w.Write([]byte("Certificate request is blocked. Contact the administrator."))
 		return
@@ -60,6 +61,7 @@ func requestCert(w http.ResponseWriter, r *http.Request) {
 	crtFile := approvedCertsDir + "/" + OU[0] + "_" + ip + ".crt"
 	// If certificate for csr already exists, just return it
 	if common.FileExists(crtFile) {
+		log.Printf("Certificate for %s already exists\n", r.Host)
 		byts, _ := ioutil.ReadFile(crtFile)
 		// Encode it to base64 and write it to the response buffer
 		data := make([]byte, base64.StdEncoding.EncodedLen(len(byts)))
@@ -77,6 +79,7 @@ func requestCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	common.WriteToPEMFile(crtFile, "CERTIFICATE", certBytes)
+	log.Printf("\nSuccessfully generated new certificate for %s", r.Host)
 	byts, _ := ioutil.ReadFile(crtFile)
 	// Encode it to base64 and write it to the response buffer
 	data = make([]byte, base64.StdEncoding.EncodedLen(len(byts)))
