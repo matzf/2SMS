@@ -79,7 +79,7 @@ func requestCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	common.WriteToPEMFile(crtFile, "CERTIFICATE", certBytes)
-	log.Printf("\nSuccessfully generated new certificate for %s", r.Host)
+	log.Printf("Successfully generated new certificate for %s\n", r.Host)
 	byts, _ := ioutil.ReadFile(crtFile)
 	// Encode it to base64 and write it to the response buffer
 	data = make([]byte, base64.StdEncoding.EncodedLen(len(byts)))
