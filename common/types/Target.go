@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"log"
+
 	"regexp"
 
 	"github.com/prometheus/common/model"
@@ -37,7 +38,6 @@ func (t *Target) ExistsInConfig(currentConfig *config.Config) bool {
 
 // Create and return a new ScrapeConfig object from the Target
 func (t *Target) ToScrapeConfig() config.ScrapeConfig {
-	fmt.Println(t)
 	target1 := make(map[model.LabelName]model.LabelValue)
 	target1["__address__"] = model.LabelValue(fmt.Sprint(t.IP) + ":" + fmt.Sprint(t.Port))
 	targets := []model.LabelSet{target1}
