@@ -3,8 +3,10 @@ package prometheus
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
@@ -139,4 +141,22 @@ func (cm ConfigManager) WriteConfig(config *config.Config) error {
 		return err
 	}
 	return nil
+}
+
+func (cm ConfigManager) LoadFile() (*config.Config, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Cannot obtain the CWD. Fatal error is: %v", err)
+	}
+	defer func(d string) {
+		err := os.Chdir(d)
+		if err != nil {
+			log.Fatalf("Cannot chdir back from the directory where prometheus lives (%s). Fatal error is: %v", d, err)
+		}
+	}(cwd)
+	err = os.Chdir(filepath.Dir(cm.ConfigFile))
+	if err != nil {
+		log.Fatalf("Cannot chdir to the directory where prometheus lives (%s). Fatal error is: %v", filepath.Dir(cm.ConfigFile), err)
+	}
+	return config.LoadFile(filepath.Base(cm.ConfigFile))
 }
