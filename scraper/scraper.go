@@ -1,14 +1,14 @@
 package main
 
 import (
-	"net/http"
-	"log"
 	"crypto/tls"
-	"os/exec"
-	"flag"
 	"encoding/gob"
 	"encoding/json"
+	"flag"
+	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,49 +16,50 @@ import (
 	"github.com/netsec-ethz/2SMS/common"
 	"github.com/netsec-ethz/2SMS/scraper/prometheus"
 
-	"github.com/scionproto/scion/go/lib/snet"
-	sd "github.com/scionproto/scion/go/lib/sciond"
 	"bytes"
-	"github.com/netsec-ethz/2SMS/common/types"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"net"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
+	"net"
 	"strings"
+
+	"github.com/netsec-ethz/2SMS/common/types"
+	sd "github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
-	localhostManagementPort	string
-	authDir			string = "auth"
-	prometheusOutFile	string
-	configManager		prometheus.ConfigManager
-	prometheusExec     string
-	prometheusConfig   string
-	scraperCert        string
-	scraperCSR			string
-	scraperPrivKey     string
-	scraperIP			string
-	scraperDNS			string
-	caCertsDir   string
-	internalScrapePort string
-	internalWritePort  string
-	managementAPIPort  string
-	managerIP		string
-	managerUnverifPort			string
-	managerVerifPort			string
-	prometheusListenAddress	string
-	prometheusRetention	string
-	local       snet.Addr
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	localhostManagementPort string
+	authDir                 string = "auth"
+	prometheusOutFile       string
+	configManager           prometheus.ConfigManager
+	prometheusExec          string
+	prometheusConfig        string
+	scraperCert             string
+	scraperCSR              string
+	scraperPrivKey          string
+	scraperIP               string
+	scraperDNS              string
+	caCertsDir              string
+	internalScrapePort      string
+	internalWritePort       string
+	managementAPIPort       string
+	managerIP               string
+	managerUnverifPort      string
+	managerVerifPort        string
+	prometheusListenAddress string
+	prometheusRetention     string
+	local                   snet.Addr
+	sciond                  = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher              = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	isdCoverage string
-	enableQUIC bool
+	enableQUIC  bool
 )
 
-func init() {
+func initScraper() {
 	flag.StringVar(&prometheusOutFile, "prometheus.out", "prometheus/out", "file where prometheus output is redirected")
 	flag.StringVar(&prometheusExec, "scraper.prometheus.exec", "prometheus/prometheus", "prometheus executable")
 	flag.StringVar(&prometheusConfig, "scraper.prometheus.config", "prometheus/prometheus.yml", "prometheus configuration file")
@@ -91,7 +92,7 @@ func init() {
 
 	// Create directory to store auth data
 	if !common.FileExists(authDir) {
-		os.Mkdir(authDir, 0700)  // The private key is stored here, so permissions are restrictive
+		os.Mkdir(authDir, 0700) // The private key is stored here, so permissions are restrictive
 	}
 	if !common.FileExists(caCertsDir) {
 		os.Mkdir(caCertsDir, 0700)
@@ -102,7 +103,7 @@ func init() {
 	common.InitNetwork(local, sciond, dispatcher)
 
 	// Bootstrap PKI
-	err := common.Bootstrap(caCertsDir + "/ca.crt", caCertsDir + "/bootstrap.json", local.IA)
+	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json", local.IA)
 	if err != nil {
 		log.Fatal("Verification of ca certificate failed:", err)
 	} else {
@@ -116,11 +117,11 @@ func init() {
 		bts, _ := x509.MarshalECPrivateKey(privKey)
 		common.WriteToPEMFile(scraperPrivKey, "ECDSA PRIVATE KEY", bts)
 		name := pkix.Name{
-			Organization:  []string{"SCIONLab"},
+			Organization:       []string{"SCIONLab"},
 			OrganizationalUnit: []string{"Scraper"},
-			Country:       []string{"CH"},
-			Province:      []string{"Zurich"},
-			Locality:      []string{"Zurich"},
+			Country:            []string{"CH"},
+			Province:           []string{"Zurich"},
+			Locality:           []string{"Zurich"},
 		}
 		bts, _ = common.GenCertSignRequest(name, privKey, []string{scraperDNS}, []net.IP{net.ParseIP(scraperIP)})
 		common.WriteToPEMFile(scraperCSR, "CERTIFICATE REQUEST", bts)
@@ -146,12 +147,12 @@ func init() {
 			IA:         local.IA.String(),
 			IP:         local.Host.IP().String(),
 			ManagePort: managementAPIPort,
-			ISDs: strings.Split(isdCoverage, ","),
+			ISDs:       strings.Split(isdCoverage, ","),
 		})
 		if err != nil {
 			log.Fatal("Failed marshalling Scraper struct:", err)
 		}
-		resp, err := client.Post("https://" + managerIP + ":" + managerVerifPort + "/scrapers/register", "application/json", bytes.NewBuffer(data))
+		resp, err := client.Post("https://"+managerIP+":"+managerVerifPort+"/scrapers/register", "application/json", bytes.NewBuffer(data))
 		if err != nil {
 			log.Fatal("Failed sending registration request:", err)
 		}
@@ -163,10 +164,11 @@ func init() {
 }
 
 func main() {
+	initScraper()
 	// Spawn and manage prometheus server
 	var proc *os.Process
 	go func() {
-		cmd := exec.Command("bash", "-c", prometheusExec + " --config.file=" + prometheusConfig + " --web.enable-lifecycle --storage.tsdb.retention=" + prometheusRetention + " --web.listen-address=" + prometheusListenAddress + " &> " + prometheusOutFile)
+		cmd := exec.Command("bash", "-c", prometheusExec+" --config.file="+prometheusConfig+" --web.enable-lifecycle --storage.tsdb.retention="+prometheusRetention+" --web.listen-address="+prometheusListenAddress+" &> "+prometheusOutFile)
 		err := cmd.Start()
 		if err != nil {
 			log.Fatal("Failed starting Prometheus command:", err)
@@ -174,7 +176,7 @@ func main() {
 		proc = cmd.Process
 		// Check if Prometheus process terminates within one seconds (usually meaning there is a problem in the config file)
 		time.Sleep(1 * time.Second)
-		out, err := exec.Command("bash", "-c", "ps -p " + fmt.Sprint(proc.Pid)).Output()
+		out, err := exec.Command("bash", "-c", "ps -p "+fmt.Sprint(proc.Pid)).Output()
 		if strings.Contains(string(out), "defunct") {
 			log.Fatal("Failed starting Prometheus server.")
 		}
@@ -192,7 +194,7 @@ func main() {
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalScrapePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC:enableQUIC},
+			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC: enableQUIC},
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
@@ -211,13 +213,13 @@ func main() {
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalWritePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC:enableQUIC},
+			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC: enableQUIC},
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
 		}
 		log.Println("Starting remote writing proxy server")
-		log.Fatal("Remote writing proxy server listening error: ",s.ListenAndServe())
+		log.Fatal("Remote writing proxy server listening error: ", s.ListenAndServe())
 	}()
 
 	// Management Server
@@ -231,8 +233,8 @@ func main() {
 
 	go func() {
 		srv := &http.Server{
-			Addr:      "127.0.0.1:" + localhostManagementPort,
-			Handler:   router,
+			Addr:    "127.0.0.1:" + localhostManagementPort,
+			Handler: router,
 		}
 		log.Fatal("Localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()

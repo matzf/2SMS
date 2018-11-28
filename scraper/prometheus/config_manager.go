@@ -1,20 +1,21 @@
 package prometheus
 
 import (
-	"net/http"
-	"github.com/prometheus/prometheus/config"
-	"os"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/pkg/errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"os"
+
+	"github.com/netsec-ethz/2SMS/common/types"
+	"github.com/pkg/errors"
+	"github.com/prometheus/prometheus/config"
 )
 
 // TODO: create interface and specific prometheus config manager
 type ConfigManager struct {
-	ConfigFile	string
-	ProxyURL	string // TODO: change to scrape and read/write
-	ListenAddress	string
+	ConfigFile    string
+	ProxyURL      string // TODO: change to scrape and read/write
+	ListenAddress string
 }
 
 // TODO: write
@@ -112,7 +113,7 @@ func (cm ConfigManager) RemoveTarget(target *types.Target) error {
 }
 
 func (cm ConfigManager) ReloadPrometheus() error {
-	resp, err := http.Post("http://" + cm.ListenAddress + "/-/reload", "application/json", nil)
+	resp, err := http.Post("http://"+cm.ListenAddress+"/-/reload", "application/json", nil)
 	if err != nil {
 		return err
 	}
@@ -123,8 +124,8 @@ func (cm ConfigManager) ReloadPrometheus() error {
 	return nil
 }
 
-func (cm ConfigManager) WriteConfig(config *config.Config, fileName string) error {
-	f, err := os.Create(fileName)
+func (cm ConfigManager) WriteConfig(config *config.Config) error {
+	f, err := os.Create(cm.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -139,4 +140,3 @@ func (cm ConfigManager) WriteConfig(config *config.Config, fileName string) erro
 	}
 	return nil
 }
-
