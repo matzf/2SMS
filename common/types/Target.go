@@ -2,21 +2,23 @@ package types
 
 import (
 	"fmt"
-	"github.com/prometheus/prometheus/config"
-	"github.com/prometheus/prometheus/discovery/targetgroup"
-	config2 "github.com/prometheus/prometheus/discovery/config"
+	"log"
 	"regexp"
+
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/config"
+	config2 "github.com/prometheus/prometheus/discovery/config"
+	"github.com/prometheus/prometheus/discovery/targetgroup"
 )
 
 type Target struct {
-	Name	string				`json:"name,omitempty"`
-	ISD 	string				`json:"isd,omitempty"`
-	AS		string				`json:"as,omitempty"`
-	IP		string				`json:"ip,omitempty"`
-	Port	string				`json:"port,omitempty"`
-	Path	string				`json:"path,omitempty"`
-	Labels	map[string]string 	`json:"labels,omitempty"`
+	Name   string            `json:"name,omitempty"`
+	ISD    string            `json:"isd,omitempty"`
+	AS     string            `json:"as,omitempty"`
+	IP     string            `json:"ip,omitempty"`
+	Port   string            `json:"port,omitempty"`
+	Path   string            `json:"path,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 func (t *Target) BuildJobName() string {
@@ -49,26 +51,50 @@ func (t *Target) ToScrapeConfig() config.ScrapeConfig {
 	return config.ScrapeConfig{JobName: t.BuildJobName(), MetricsPath: "/" + t.ISD + "-" + t.AS + t.Path, ServiceDiscoveryConfig: sdConfig}
 }
 
-// Parse given ScrapeConfig and fill Target fields accordingly
+// FromScrapeConfig parses given ScrapeConfig and fill Target fields accordingly
 // Assumption: every job has only a single static config and a single target
+// If the name is not of the form "17-ffaa:1:43 127.0.0.5 node" it may result in the AS or ISD fields
+// of Target not being populated. The labels may be then used to populate them.
 func (t *Target) FromScrapeConfig(sc *config.ScrapeConfig) {
-	// Parse job name into name, ISD and AS
-	re := regexp.MustCompile( `(.+)-(.+) (.+) (.+)`)
+	// Parse job name into name, ISD and AS (e.g. 17-ffaa:1:43 127.0.0.5 node)
+	re := regexp.MustCompile(`(.+)-(.+) (.+) (.+)`)
 	groups := re.FindStringSubmatch(sc.JobName)
-	t.ISD = groups[1]
-	t.AS = groups[2]
-	t.Name = groups[3]
+	if len(groups) == 5 {
+		t.ISD = groups[1]
+		t.AS = groups[2]
+		t.Name = groups[4]
+	} else {
+		// cannot guess the ISD or AS
+		t.ISD = ""
+		t.AS = ""
+		t.Name = sc.JobName
+	}
 	// Parse url into IP and Port
 	re = regexp.MustCompile(`(.+):(\d+)`)
 	groups = re.FindStringSubmatch(string(sc.ServiceDiscoveryConfig.StaticConfigs[0].Targets[0]["__address__"]))
-	t.IP = groups[1]
-	t.Port = groups[2]
+	if len(groups) != 3 {
+		log.Printf("Reading Target from prometheus configuration: could not parse address of '%s'", sc.JobName)
+		t.IP = ""
+		t.Port = ""
+	} else {
+		t.IP = groups[1]
+		t.Port = groups[2]
+	}
 	// Get metrics path
 	t.Path = sc.MetricsPath
 	// Get labels
 	labels := make(map[string]string)
 	for k, v := range sc.ServiceDiscoveryConfig.StaticConfigs[0].Labels {
-		labels[string(k)] = string(v)
+		kk := string(k)
+		vv := string(v)
+		labels[kk] = vv
+		// if we couldn't get ISD or AS, but we have those labels, populate them
+		if t.ISD == "" && kk == "ISD" {
+			t.ISD = vv
+		}
+		if t.AS == "" && kk == "AS" {
+			t.AS = vv
+		}
 	}
 	t.Labels = labels
 }
