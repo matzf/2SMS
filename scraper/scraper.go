@@ -34,7 +34,7 @@ var (
 	localhostManagementPort string
 	authDir                 string = "auth"
 	prometheusOutFile       string
-	configManager           *prometheus.ConfigManager
+	configManager           prometheus.ConfigManager
 	prometheusExec          string
 	prometheusConfig        string
 	scraperCert             string
@@ -134,7 +134,7 @@ func initScraper() {
 		}
 	}
 
-	configManager = prometheus.NewConfigManager(prometheusConfig, prometheusExec, "http://127.0.0.1:"+internalScrapePort, prometheusListenAddress)
+	configManager = prometheus.ConfigManager{ConfigFile: prometheusConfig, ProxyURL: "http://127.0.0.1:" + internalScrapePort, ListenAddress: prometheusListenAddress}
 
 	if isdCoverage == "" {
 		isdCoverage = fmt.Sprint(local.IA.I)

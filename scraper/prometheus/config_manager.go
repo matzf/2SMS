@@ -15,56 +15,9 @@ import (
 
 // TODO: create interface and specific prometheus config manager
 type ConfigManager struct {
-	configFile                string
-	prometheusBin             string
-	_configRelativeFromBinary string // relative path to configFile from prometheusBin directory
-	ProxyURL                  string // TODO: change to scrape and read/write
-	ListenAddress             string
-}
-
-// NewConfigManager creates a new ConfigManager and returns a pointer to it
-func NewConfigManager(configFile, prometheusBin, proxyURL, listenAddress string) *ConfigManager {
-	cm := ConfigManager{configFile: configFile, prometheusBin: prometheusBin, ProxyURL: proxyURL, ListenAddress: listenAddress}
-	cm._recomputeConfPathFromPromBinPath()
-	return &cm
-}
-
-// this will recompute the relative path to the configuration file from the prometheus binary path
-func (cm *ConfigManager) _recomputeConfPathFromPromBinPath() {
-	configDirs := filepath.SplitList(filepath.Dir(filepath.Clean(cm.configFile)))
-	binDirs := filepath.SplitList(filepath.Dir(filepath.Clean(cm.prometheusBin)))
-	commonPrefixCount := 0
-	for p := range configDirs {
-		if configDirs[p] != binDirs[p] {
-			break
-		}
-		commonPrefixCount++
-	}
-	configDirs = configDirs[commonPrefixCount:]
-	cm._configRelativeFromBinary = filepath.Join(configDirs...)
-	cm._configRelativeFromBinary = filepath.Join(cm._configRelativeFromBinary, filepath.Base(cm.configFile))
-}
-
-// GetConfigPath returns the configuration path
-func (cm *ConfigManager) GetConfigPath() string {
-	return cm.configFile
-}
-
-// SetConfigPath sets the configuration path
-func (cm *ConfigManager) SetConfigPath(configPath string) {
-	cm.configFile = configPath
-	cm._recomputeConfPathFromPromBinPath()
-}
-
-// GetPrometheusBinPath returns the prometheus binary path
-func (cm *ConfigManager) GetPrometheusBinPath() string {
-	return cm.prometheusBin
-}
-
-// SetPrometheusBinPath sets the prometheus binary path
-func (cm *ConfigManager) SetPrometheusBinPath(prometheusBinPath string) {
-	cm.prometheusBin = prometheusBinPath
-	cm._recomputeConfPathFromPromBinPath()
+	ConfigFile    string
+	ProxyURL      string // TODO: change to scrape and read/write
+	ListenAddress string
 }
 
 // TODO: write
@@ -175,7 +128,7 @@ func (cm *ConfigManager) ReloadPrometheus() error {
 
 // WriteConfig writes the prometheus native Config structure to the YML file set in this ConfigManager
 func (cm *ConfigManager) WriteConfig(config *config.Config) error {
-	f, err := os.Create(cm.configFile)
+	f, err := os.Create(cm.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -204,9 +157,11 @@ func (cm *ConfigManager) LoadFile() (*config.Config, error) {
 			log.Fatalf("Cannot chdir back from the directory where prometheus lives (%s). Fatal error is: %v", d, err)
 		}
 	}(cwd)
-	err = os.Chdir(filepath.Dir(cm.prometheusBin))
+	err = os.Chdir(filepath.Dir(cm.ConfigFile))
 	if err != nil {
-		log.Fatalf("Cannot chdir to the directory where prometheus lives (%s). Fatal error is: %v", filepath.Dir(cm.prometheusBin), err)
+		log.Fatalf("Cannot chdir to the directory where prometheus lives (%s). Fatal error is: %v", filepath.Dir(cm.ConfigFile), err)
 	}
-	return config.LoadFile(cm._configRelativeFromBinary)
+	// we need to specify a path without subdirectories, for config.LoadFile will prepend those
+	// to the filepaths contained in the config file
+	return config.LoadFile(filepath.Base(cm.ConfigFile))
 }
