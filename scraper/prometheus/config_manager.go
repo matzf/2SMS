@@ -143,6 +143,8 @@ func (cm ConfigManager) WriteConfig(config *config.Config) error {
 	return nil
 }
 
+// LoadFile reads the configuration file and returns a prometheus configuration Config struct.
+// The configuration file can be anywhere, and LoadFile can be called from any working directory.
 func (cm ConfigManager) LoadFile() (*config.Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -154,6 +156,7 @@ func (cm ConfigManager) LoadFile() (*config.Config, error) {
 			log.Fatalf("Cannot chdir back from the directory where prometheus lives (%s). Fatal error is: %v", d, err)
 		}
 	}(cwd)
+	// call the config.LoadFile function from the prometheus binary directory:
 	err = os.Chdir(filepath.Dir(cm.ConfigFile))
 	if err != nil {
 		log.Fatalf("Cannot chdir to the directory where prometheus lives (%s). Fatal error is: %v", filepath.Dir(cm.ConfigFile), err)
