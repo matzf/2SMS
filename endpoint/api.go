@@ -1,21 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/netsec-ethz/2SMS/common"
-	"github.com/netsec-ethz/2SMS/common/types"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/netsec-ethz/2SMS/common/types"
 )
 
 func listMappings(w http.ResponseWriter, r *http.Request) {
 	// Try loading into a temp map
-	mappings, err := LoadInternalMappings()
+	mappings, err := LoadMappings()
 	if err != nil {
 		log.Println("Failed reloading internal mappings:", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -39,64 +37,66 @@ func addMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Add mapping to the forwarding list
-	err = AddInternalMapping(*mapping)
+	err = UpdateMappings(*mapping)
 	if err != nil {
 		w.WriteHeader(500)
 		log.Println("Failed adding internal mapping:", err)
 		return
 	}
-	updateMappings()
 
 	// Add metric permissions for the new target to "owner_role"
-	metricsInfo := GetMetricsInfoForMapping(mapping.Path, http.Client{})
-	metricsNames := make([]string, len(metricsInfo))
-	for i, metric := range metricsInfo {
-		metricsNames[i] = metric.Name
-	}
-	accessController.AddRolePermissions(common.OwnerRole, mapping.Path, metricsNames)
-
-	if managerIP != "" {
-		// Add mapping as target to all scrapers
-		client := common.CreateHttpsClient(caCertsDir, endpointCert, endpointPrivKey)
-		// Build target, marshal it and pass it as body
-		target := types.Target{}
-		target.AS = local.IA.A.String()
-		target.ISD = fmt.Sprint(local.IA.I)
-		target.IP = endpointIP
-		target.Path = mapping.Path
-		target.Port = fmt.Sprint(local.L4Port)
-		target.Labels = make(map[string]string)
-		target.Labels["AS"] = target.AS
-		target.Labels["ISD"] = target.ISD
-		target.Labels["service"] = target.Path[1:] // Assumes path is of the form `/<service-name>`
-		target.Name = target.Path[1:]
-		jsonBytes, err := json.Marshal(target)
-		if err != nil {
-			log.Println("Error while marshaling json:", err)
-			w.WriteHeader(500)
-			return
-		}
-		resp, err := client.Post("https://"+managerIP+":"+managerVerifPort+"/endpoint/mappings/notify", "application/json", bytes.NewReader(jsonBytes))
-		// Add role owner and scrape permission to each scraper
-		addScraperPermissions(resp, mapping.Path)
+	thisMapping := types.EndpointMappings{mapping.Path: mapping.Port}
+	SyncPermissions(thisMapping, types.EndpointMappings{})
+	err = SyncManager(thisMapping, types.EndpointMappings{})
+	if err != nil {
+		w.WriteHeader(500)
+		log.Println("Failed to sync against the manager:", err)
+		return
 	}
 	w.WriteHeader(201)
 }
 
-// Add owner role and scrape permission to each scraper
-func addScraperPermissions(resp *http.Response, mapping string) {
-	var addedToScrapers []types.Scraper
-	data, err := ioutil.ReadAll(resp.Body)
+// putMappings receives a Message
+func putMappings(w http.ResponseWriter, r *http.Request) {
+	type Message struct {
+		RemoveRegex []string        `json:"removeRegex,omitempty"`
+		Add         []types.Mapping `json:"add,omitempty"`
+	}
+	var mappings Message
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println("Failed reading body:", err)
+		log.Printf("Could not read the body: %v", err)
+		w.WriteHeader(500)
 		return
 	}
-	err = json.Unmarshal(data, &addedToScrapers)
-	// TODO: handle error
-	for _, scr := range addedToScrapers {
-		accessController.AddRole(scr.IA+":"+scr.IP, mapping[1:]+"_"+common.OwnerRole)
-		accessController.AllowSource(scr.IA+":"+scr.IP, mapping)
+	err = json.Unmarshal(data, &mappings)
+	if err != nil {
+		w.WriteHeader(400)
+		log.Printf("Failed parsing request body %v: %v\n", string(data), err)
+		return
 	}
+	removals := mappings.RemoveRegex
+	removed, err := RemoveMappingRegexpBatch(removals)
+	if err != nil {
+		w.WriteHeader(400)
+		log.Printf("Failed removing: %v.\nRequest body: %v\n", err, string(data))
+		return
+	}
+	additions := mappings.Add
+	added, err := UpdateMappingBatch(additions)
+	if err != nil {
+		w.WriteHeader(400)
+		log.Printf("Failed adding: %v.\nRequest body: %v\n", err, string(data))
+		return
+	}
+	SyncPermissions(added, removed)
+	err = SyncManager(added, removed)
+	if err != nil {
+		w.WriteHeader(500)
+		log.Println("Failed to sync against the manager:", err)
+		return
+	}
+	w.WriteHeader(204)
 }
 
 func removeMapping(w http.ResponseWriter, r *http.Request) {
@@ -107,38 +107,20 @@ func removeMapping(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed parsing request body:", err)
 		return
 	}
-
 	// Remove mapping from local forwarding list
-	err = RemoveInternalMapping(*mapping)
+	err = RemoveMapping(mapping.Path)
 	if err != nil {
 		w.WriteHeader(500)
 		log.Println("Failed removing internal mapping:", err)
 		return
 	}
-	updateMappings()
-
 	// Remove all scrape and temporal permissions associated with the removed mapping
-	accessController.DeleteAllMappingPermissions(mapping.Path)
-
-	if managerIP != "" {
-		// Remove mapping from any scraper that has it as target
-		client := common.CreateHttpsClient(caCertsDir, endpointCert, endpointPrivKey)
-		target := types.Target{}
-		target.AS = local.IA.A.String()
-		target.ISD = fmt.Sprint(local.IA.I)
-		target.IP = endpointIP
-		target.Path = mapping.Path
-		target.Port = fmt.Sprint(local.L4Port)
-		target.Labels = make(map[string]string)
-		target.Name = target.Path[1:]
-		jsonBytes, err := json.Marshal(target)
-		if err != nil {
-			log.Println("Error while marshaling json:", err)
-			w.WriteHeader(500)
-			return
-		}
-		req, err := http.NewRequest("DELETE", "https://"+managerIP+":"+managerVerifPort+"/endpoint/mappings/notify", bytes.NewReader(jsonBytes))
-		_, err = client.Do(req)
+	SyncPermissions(types.EndpointMappings{}, types.EndpointMappings{mapping.Path: mapping.Port})
+	err = SyncManager(types.EndpointMappings{}, types.EndpointMappings{mapping.Path: mapping.Port})
+	if err != nil {
+		w.WriteHeader(500)
+		log.Printf("Could not sync with manager while removing target. Error is: %v", err)
+		return
 	}
 	w.WriteHeader(204)
 }
@@ -154,22 +136,6 @@ func parseChangeRequest(r *http.Request) (*types.Mapping, error) {
 		return nil, err
 	}
 	return &mapping, nil
-}
-
-func updateMappings() error {
-	// Try loading into a temp map
-	tmpMappings, err := LoadInternalMappings()
-	if err != nil {
-		return err
-	}
-	// Lock global variable
-	reloadMappingsMutex.Lock()
-	// Reassign mappings
-	internalMapping = tmpMappings
-	// Unlock global variable
-	reloadMappingsMutex.Unlock()
-	log.Println("Successfully reloaded internal mappings:", internalMapping)
-	return nil
 }
 
 func listMetrics(w http.ResponseWriter, r *http.Request) {

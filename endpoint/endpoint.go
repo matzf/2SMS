@@ -1,78 +1,76 @@
 package main
 
 import (
-	"net/http"
-	"io"
-	"flag"
-	"strconv"
-	"os/exec"
-	"log"
-	"encoding/gob"
-	"encoding/json"
-	"os"
 	"crypto/tls"
+	"encoding/gob"
+	"flag"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
 
 	"github.com/netsec-ethz/2SMS/common"
 
 	"github.com/gorilla/mux"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	sd "github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 
 	"github.com/lucas-clemente/quic-go"
 	//"github.com/scionproto/scion/go/lib/snet/squic" // TODO: change to this (gives type problems)
 	"github.com/juagargi/temp_squic"
 
-	"sync"
 	"bytes"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"crypto/x509"
 	"crypto/ecdsa"
+	"crypto/x509"
 	"crypto/x509/pkix"
-	"net"
 	"io/ioutil"
-	"fmt"
+	"net"
 	"strings"
+	"sync"
+
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/prometheus/common/expfmt"
-	"time"
 )
 
 var (
-	authorizationPort	string
-	nodeOutFile	string
-	reloadMappingsMutex	= &sync.Mutex{}
-	internalMapping 	map[string]string
-	endpointIP			string
-	endpointDNS			string
-	caCertsDir		string
-	externalPort		string
-	endpointCert		string
-	endpointPrivKey		string
-	endpointCSR			string
-	nodeExporterEnabled	string
-	managementAPIPort 	string
-	managerIP		string
-	managerVerifPort			string
-	managerUnverifPort			string
-	local       snet.Addr
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	authorizationPort   string
+	nodeOutFile         string
+	reloadMappingsMutex = &sync.Mutex{}
+	internalMapping     types.EndpointMappings
+	endpointIP          string
+	endpointDNS         string
+	caCertsDir          string
+	externalPort        string
+	endpointCert        string
+	endpointPrivKey     string
+	endpointCSR         string
+	nodeExporterEnabled string
+	managementAPIPort   string
+	managerIP           string
+	managerVerifPort    string
+	managerUnverifPort  string
+	local               snet.Addr
+	sciond              = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher          = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
-	authDir			string = "auth"
-	nodeExec	string
-	nodePath	string
-	nodeListenAddress	string
+	authDir                 string = "auth"
+	nodeExec                string
+	nodePath                string
+	nodeListenAddress       string
 	localhostManagementPort string
-	genFolder string
-	doAccessControl bool
-	accessController *common.AccessController
-	httpsClient *http.Client
-	initRolesFile	string
-	authPolicyFile	string
-	authModelFile	string
+	genFolder               string
+	doAccessControl         bool
+	accessController        *common.AccessController
+	httpsClient             *http.Client
+	initRolesFile           string
+	authPolicyFile          string
+	authModelFile           string
 )
 
-func init() {
+func initialize_endpoint() {
 	flag.StringVar(&nodeExec, "node.exec", "node-exporter/node_exporter", "path to node exporter executable")
 	flag.StringVar(&nodeListenAddress, "node.liste-address", "127.0.0.1:9100", "address where node exporter listens")
 	flag.StringVar(&nodePath, "node.path", "/metrics", "path where node exporter's metrics are showed")
@@ -101,7 +99,7 @@ func init() {
 	flag.StringVar(&genFolder, "gen", "", "path to the SCION gen folder")
 	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
 
-	flag.BoolVar(&doAccessControl, "", true,"")
+	flag.BoolVar(&doAccessControl, "", true, "")
 	flag.Parse()
 
 	gob.Register(types.Request{})
@@ -112,7 +110,7 @@ func init() {
 	}
 	// Create directory to store auth data
 	if !common.FileExists(authDir) {
-		os.Mkdir(authDir, 0700)  // The private key is stored here, so permissions are restrictive
+		os.Mkdir(authDir, 0700) // The private key is stored here, so permissions are restrictive
 	}
 	if !common.FileExists(caCertsDir) {
 		os.Mkdir(caCertsDir, 0700)
@@ -122,7 +120,7 @@ func init() {
 	common.InitNetwork(local, sciond, dispatcher)
 
 	// Bootstrap PKI
-	err := common.Bootstrap(caCertsDir + "/ca.crt", caCertsDir + "/bootstrap.json", local.IA)
+	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json", local.IA)
 	if err != nil {
 		log.Fatal("Verification of ca certificate failed:", err)
 	} else {
@@ -136,17 +134,17 @@ func init() {
 		bts, _ := x509.MarshalECPrivateKey(privKey)
 		common.WriteToPEMFile(endpointPrivKey, "ECDSA PRIVATE KEY", bts)
 		name := pkix.Name{
-			Organization:  []string{"SCIONLab"},
+			Organization:       []string{"SCIONLab"},
 			OrganizationalUnit: []string{"Endpoint"},
-			Country:       []string{"CH"},
-			Province:      []string{"Zurich"},
-			Locality:      []string{"Zurich"},
+			Country:            []string{"CH"},
+			Province:           []string{"Zurich"},
+			Locality:           []string{"Zurich"},
 		}
 		bts, _ = common.GenCertSignRequest(name, privKey, []string{endpointDNS}, []net.IP{net.ParseIP(endpointIP)})
 		common.WriteToPEMFile(endpointCSR, "CERTIFICATE REQUEST", bts)
 	}
 	// Request certificate to the manager
-	if !common.FileExists(endpointCert){
+	if !common.FileExists(endpointCert) {
 		if managerIP != "" {
 			common.RequestAndObtainCert(caCertsDir, managerIP, managerUnverifPort, endpointCert, endpointCSR, "Endpoint", endpointIP)
 		} else {
@@ -160,11 +158,11 @@ func init() {
 			nodeListenPort = strings.Split(nodeListenAddress, ":")[1]
 		}
 		mappings := InitInternalMappings(nodeListenPort, genFolder)
-		writeMappings(mappings)
+		SaveMappings(mappings)
 	}
 
 	// Load mapping from file
-	internalMapping, err = LoadInternalMappings()
+	internalMapping, err = LoadMappings()
 	if err != nil {
 		log.Fatal("Failed initializing internal mappings:", err)
 	}
@@ -180,66 +178,23 @@ func init() {
 		file.Close()
 	}
 	accessController = common.NewAccessController(authModelFile, authPolicyFile, doAccessControl, &local.IA)
-
-	// Initialize permissions for mappings
-	for mapping := range internalMapping {
-		if mapping != "/node" {
-			metricInfos := GetMetricsInfoForMapping(mapping, http.Client{})
-			perms := make([]string, len(metricInfos))
-			for i, info := range metricInfos {
-				perms[i] = info.Name
-			}
-			accessController.AddRolePermissions("owner", mapping, perms)
-		}
-	}
-	// Load permissions from file for user defined and reserved roles (core and neighbor)
-	if initRolesFile != "" {
-		accessController.LoadPermsFromFile(initRolesFile)
-	}
-
-	// Register at manager
-	if managerIP != "" {
-		var paths []string
-		for mapping, _ := range internalMapping {
-			paths = append(paths, mapping)
-		}
-		data, _ := json.Marshal(types.Endpoint{
-			IA:         local.IA.String(),
-			IP:         local.Host.IP().String(),
-			ScrapePort: fmt.Sprint(local.L4Port),
-			ManagePort: managementAPIPort,
-			Paths:      paths,
-		})
-		if err != nil {
-			log.Fatal("Failed marshalling Endpoint struct:", err)
-		}
-		resp, err := httpsClient.Post("https://" + managerIP + ":" + managerVerifPort + "/endpoints/register", "application/json", bytes.NewBuffer(data))
-		if err != nil {
-			log.Fatal("Failed sending registration request:", err)
-		}
-		if resp.StatusCode != 200 {
-			message, _ := ioutil.ReadAll(resp.Body)
-			log.Fatal("Registration failed. Status code:", resp.StatusCode, "Message:", message)
-		}
-		for _, path := range paths {
-			addScraperPermissions(resp, path)
-		}
-	}
 }
 
 func main() {
+	initialize_endpoint()
 	log.Println("Started Endpoint Application")
 
 	// If enabled, run node exporter
-	enabled, err := strconv.ParseBool(nodeExporterEnabled)
+	nodeEnabled, err := strconv.ParseBool(nodeExporterEnabled)
 	if err != nil {
 		log.Fatal("Error in parsing 'activated':", err)
 	}
-	if err == nil && enabled {
-		log.Println("Node exporter activated:", enabled)
+	if nodeEnabled {
+		log.Println("Node exporter activated:", nodeEnabled)
 		var proc *os.Process
+		nodeIsRunning := make(chan struct{})
 		go func() {
-			cmd := exec.Command("bash", "-c", nodeExec + " --web.telemetry-path=" + nodePath + " --web.listen-address=" + nodeListenAddress + " &> " + nodeOutFile)
+			cmd := exec.Command("bash", "-c", nodeExec+" --web.telemetry-path="+nodePath+" --web.listen-address="+nodeListenAddress+" &> "+nodeOutFile)
 			err := cmd.Start()
 			if err != nil {
 				log.Fatal("Failed starting Node Exporter: ", err)
@@ -247,15 +202,25 @@ func main() {
 			// TODO: check that process really started
 			proc = cmd.Process
 			log.Println("Started Node Exporter as process ", cmd.Process.Pid)
-			time.Sleep(1 * time.Second)
-			metricInfos := GetMetricsInfoForMapping("/node", http.Client{})
-			perms := make([]string, len(metricInfos))
-			for i, info := range metricInfos {
-				perms[i] = info.Name
-			}
-			accessController.AddRolePermissions("owner", "/node", perms)
+			// time.Sleep(1 * time.Second)
+			nodeIsRunning <- struct{}{}
 		}()
 		defer proc.Kill()
+		<-nodeIsRunning
+	}
+	// Initialize permissions for mappings
+	// Load permissions from file for user defined and reserved roles (core and neighbor)
+	if initRolesFile != "" {
+		err = accessController.LoadPermsFromFile(initRolesFile)
+		if err != nil {
+			log.Printf("Loading the role file '%s', ignoring error: %v", initRolesFile, err)
+		}
+	}
+	SyncPermissions(internalMapping, types.EndpointMappings{})
+	// Register at manager
+	err = SyncManager(internalMapping, types.EndpointMappings{})
+	if err != nil {
+		log.Fatalf("Initial synchronization to manager failed: %v", err)
 	}
 
 	// HTTPS server
@@ -268,7 +233,7 @@ func main() {
 	}()
 
 	// SCION server
-	go func(){
+	go func() {
 		log.Println("Starting SCION server")
 		squic.Init(endpointPrivKey, endpointCert)
 
@@ -297,7 +262,7 @@ func main() {
 		}
 	}()
 
-	go func(){
+	go func() {
 		router := mux.NewRouter()
 
 		router.HandleFunc("/{mapping}/metrics/list", listMetrics).Methods("GET")
@@ -313,6 +278,7 @@ func main() {
 	router.HandleFunc("/mappings", listMappings).Methods("GET")
 	router.HandleFunc("/mappings", addMapping).Methods("POST")
 	router.HandleFunc("/mappings", removeMapping).Methods("DELETE")
+	router.HandleFunc("/mappings", putMappings).Methods("PUT")
 
 	router.HandleFunc("/{mapping}/metrics/list", listMetrics).Methods("GET")
 
@@ -339,12 +305,10 @@ func main() {
 	router.HandleFunc("/roles/{role}/permissions/{mapping}", addRolePermissions).Methods("POST")
 	router.HandleFunc("/roles/{role}/permissions/{mapping}", removeRolePermissions).Methods("DELETE")
 
-
-
 	go func() {
 		srv := &http.Server{
-			Addr:      "127.0.0.1:" + localhostManagementPort,
-			Handler:   router,
+			Addr:    "127.0.0.1:" + localhostManagementPort,
+			Handler: router,
 		}
 		log.Println("localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()
@@ -420,7 +384,7 @@ func handleQUICSession(qsess quic.Session, client http.Client) {
 	}
 }
 
-type handler struct{
+type handler struct {
 	client http.Client
 }
 
@@ -501,7 +465,7 @@ func LocalhostGet(path string, client http.Client) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://127.0.0.1:" + internalPort + path)
+		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://127.0.0.1:"+internalPort+path)
 		return nil, err
 	}
 	return resp, nil
