@@ -607,6 +607,27 @@ func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
 				jsonTarget, _ := json.Marshal(target) // TODO: handle error
 				// Add target to scraper
 				addTargetToScraper(jsonTarget, scraper)
+				// Assign owner role for the mapping to the scraper
+				jsonRole, _ := json.Marshal(target.Name + "_owner")
+				source := scraper.IA + ":" + scraper.IP
+				endpointAddress := end.IP + ":" + end.ManagePort
+				resp, err := httpsClient.Post("https://" + endpointAddress + "/" + source +"/roles", "application/json", bytes.NewReader(jsonRole))
+				if err != nil {
+					log.Printf("Post request for adding role failed with error: %v", err)
+				} else if resp.StatusCode != http.StatusNoContent {
+					log.Printf("Add owner role for %s to scraper %s at endpoint %s failed. Response was: %v", target.Path, source, end.IP, resp)
+				} else {
+					log.Printf("Added owner role for %s to scraper %s at endpoint %s.", target.Path, source, end.IP)
+				}
+				// Assign a scrape permission for the mapping to the scraper
+				resp, err = httpsClient.Get("https://" + endpointAddress + "/" + source + target.Path + "/enable")
+				if err != nil {
+					log.Printf("Post request for adding scrape permission failed with error: %v", err)
+				} else if resp.StatusCode != http.StatusNoContent {
+					log.Printf("Add scrape permission for %s to scraper %s at endpoint %s failed. Response was: %v", target.Path, source, end.IP, resp)
+				} else {
+					log.Printf("Added scrape permission for %s to scraper %s at endpoint %s.", target.Path, source, end.IP)
+				}
 			}
 		}
 	}
