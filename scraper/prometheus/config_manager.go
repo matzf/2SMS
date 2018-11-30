@@ -1,118 +1,26 @@
 package prometheus
 
 import (
-	"net/http"
-	"github.com/prometheus/prometheus/config"
-	"os"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/pkg/errors"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/prometheus/prometheus/config"
 )
 
 // TODO: create interface and specific prometheus config manager
 type ConfigManager struct {
-	ConfigFile	string
-	ProxyURL	string // TODO: change to scrape and read/write
-	ListenAddress	string
+	ConfigFile    string
+	ProxyURL      string // TODO: change to scrape and read/write
+	ListenAddress string
 }
 
-// TODO: write
-func (cm ConfigManager) AddTarget(target *types.Target) error {
-	//parsedConfig, err := config.LoadFile(cm.ConfigFile)
-	//if err != nil {
-	//	fmt.Println("Error while loading parsedConfig from file:", err)
-	//	w.WriteHeader(400)
-	//} else {
-	//	/*fmt.Println(parsedConfig.ScrapeConfigs[0].JobName)
-	//	fmt.Println(parsedConfig.ScrapeConfigs[0].HTTPClientConfig)
-	//	fmt.Println(parsedConfig.ScrapeConfigs[0].MetricsPath)
-	//	fmt.Println(parsedConfig.ScrapeConfigs[0].Params)
-	//	fmt.Println(parsedConfig.ScrapeConfigs[0].Scheme)*/
-	//	//fmt.Println(parsedConfig.ScrapeConfigs[0].ServiceDiscoveryConfig.StaticConfigs[0].Targets)
-	//
-	//	// Parse body
-	//	var target common.Target
-	//	_ = json.NewDecoder(r.Body).Decode(&target)
-	//
-	//	// Check if name not already used
-	//	if target.ExistsInConfig(parsedConfig) {
-	//		w.WriteHeader(400)
-	//		return
-	//	}
-	//
-	//	newScrapeConfig := target.ToScrapeConfig()
-	//	proxyURL, _ := url.Parse(cm.ProxyURL) // Error is not checked because ProxyURL assumed to be correct
-	//	newScrapeConfig.HTTPClientConfig = config2.HTTPClientConfig{ProxyURL: config2.URL{proxyURL}}
-	//
-	//	// Add new ScrapeConfig to Config.ScrapeConfigs
-	//	parsedConfig.ScrapeConfigs = append(parsedConfig.ScrapeConfigs, &newScrapeConfig)
-	//
-	//	// Write new parsedConfig to file
-	//	writeConfig(parsedConfig, cm.ConfigFile)
-	//	log.Println("Added job to config:", fmt.Sprint(target.ISD) + "-" + fmt.Sprint(target.AS) + " " + target.Name)
-	//
-	//	reloadPrometheus()
-	//	w.WriteHeader(204)
-	//}
-	return nil
-}
-
-// TODO: write
-func (cm ConfigManager) ListTargets() ([]*types.Target, error) {
-	//parsedConfig, err := config.LoadFile(cm.ConfigFile)
-	//if err != nil {
-	//	fmt.Println("Error while loading parsedConfig from file:", err)
-	//	w.WriteHeader(400)
-	//} else {
-	//	var targets []common.Target
-	//	for _, job := range parsedConfig.ScrapeConfigs {
-	//		var target common.Target
-	//		target.FromScrapeConfig(job)
-	//		// Extend
-	//		targets = append(targets, target)
-	//	}
-	//	json.NewEncoder(w).Encode(targets)
-	//}
-	return nil, nil
-}
-
-// TODO: write
-func (cm ConfigManager) RemoveTarget(target *types.Target) error {
-	//parsedConfig, err := config.LoadFile(cm.ConfigFile)
-	//if err != nil {
-	//	fmt.Println("Error while loading parsedConfig from file:", err)
-	//	w.WriteHeader(400)
-	//} else {
-	//	// Parse body
-	//	var target common.Target
-	//	_ = json.NewDecoder(r.Body).Decode(&target)
-	//
-	//	// Check if name exists
-	//	if !target.ExistsInConfig(parsedConfig) {
-	//		w.WriteHeader(400)
-	//		return
-	//	}
-	//	var newScrapeConfigs []*config.ScrapeConfig
-	//	jobName := target.BuildJobName()
-	//	for _, job := range parsedConfig.ScrapeConfigs {
-	//		if job.JobName != jobName {
-	//			newScrapeConfigs = append(newScrapeConfigs, job)
-	//		}
-	//	}
-	//	parsedConfig.ScrapeConfigs = newScrapeConfigs
-	//
-	//	writeConfig(parsedConfig, cm.ConfigFile)
-	//	log.Println("Removed job from config:", fmt.Sprint(target.ISD) + "-" + fmt.Sprint(target.AS) + " " + target.Name)
-	//
-	//	reloadPrometheus()
-	//	w.WriteHeader(204)
-	//}
-	return nil
-}
-
-func (cm ConfigManager) ReloadPrometheus() error {
-	resp, err := http.Post("http://" + cm.ListenAddress + "/-/reload", "application/json", nil)
+func (cm *ConfigManager) ReloadPrometheus() error {
+	resp, err := http.Post("http://"+cm.ListenAddress+"/-/reload", "application/json", nil)
 	if err != nil {
 		return err
 	}
@@ -123,8 +31,9 @@ func (cm ConfigManager) ReloadPrometheus() error {
 	return nil
 }
 
-func (cm ConfigManager) WriteConfig(config *config.Config, fileName string) error {
-	f, err := os.Create(fileName)
+// WriteConfig writes the prometheus native Config structure to the YML file set in this ConfigManager
+func (cm *ConfigManager) WriteConfig(config *config.Config) error {
+	f, err := os.Create(cm.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -140,3 +49,24 @@ func (cm ConfigManager) WriteConfig(config *config.Config, fileName string) erro
 	return nil
 }
 
+// LoadFile reads the configuration file and returns a prometheus configuration Config struct.
+// The configuration file can be anywhere, and LoadFile can be called from any working directory.
+func (cm *ConfigManager) LoadFile() (*config.Config, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Cannot obtain the CWD. Fatal error is: %v", err)
+	}
+	defer func(d string) {
+		err := os.Chdir(d)
+		if err != nil {
+			log.Fatalf("Cannot chdir back from the directory where prometheus lives (%s). Fatal error is: %v", d, err)
+		}
+	}(cwd)
+	err = os.Chdir(filepath.Dir(cm.ConfigFile))
+	if err != nil {
+		log.Fatalf("Cannot chdir to the directory where prometheus lives (%s). Fatal error is: %v", filepath.Dir(cm.ConfigFile), err)
+	}
+	// we need to specify a path without subdirectories, for config.LoadFile will prepend those
+	// to the filepaths contained in the config file
+	return config.LoadFile(filepath.Base(cm.ConfigFile))
+}

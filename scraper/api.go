@@ -1,58 +1,60 @@
 package main
 
 import (
-	"log"
-	"fmt"
-	"net/http"
-	"github.com/prometheus/prometheus/config"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"net/url"
+
 	"github.com/netsec-ethz/2SMS/common/types"
 	config2 "github.com/prometheus/common/config"
-	"io/ioutil"
+	"github.com/prometheus/prometheus/config"
 )
+
 // TODO: call config manager instead of doing everything here (just parse request and build answer)
 
 func AddTarget(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		log.Println("Error while loading parsedConfig from file:", err)
 		w.WriteHeader(500)
-	} else {
-		// Parse body
-		var target types.Target
-		_ = json.NewDecoder(r.Body).Decode(&target)
-
-		// Check if name not already used
-		if target.ExistsInConfig(parsedConfig) {
-			w.WriteHeader(400)
-			w.Write([]byte("Job name already in use."))
-			return
-		}
-
-		newScrapeConfig := target.ToScrapeConfig()
-		proxyURL, _ := url.Parse(configManager.ProxyURL) // Error is not checked because ProxyURL assumed to be correct
-		newScrapeConfig.HTTPClientConfig = config2.HTTPClientConfig{ProxyURL: config2.URL{proxyURL}}
-
-		// Add new ScrapeConfig to Config.ScrapeConfigs
-		parsedConfig.ScrapeConfigs = append(parsedConfig.ScrapeConfigs, &newScrapeConfig)
-
-		// Write new parsedConfig to file
-		configManager.WriteConfig(parsedConfig, configManager.ConfigFile)
-		log.Println("Added job to config:", fmt.Sprint(target.ISD) + "-" + fmt.Sprint(target.AS) + " " + target.Name)
-
-		err := configManager.ReloadPrometheus()
-		if err != nil {
-			log.Println("Failed reloading Prometheus:", err)
-			w.WriteHeader(500)
-			return
-		}
-		w.WriteHeader(201)
+		return
 	}
+	// Parse body
+	var target types.Target
+	_ = json.NewDecoder(r.Body).Decode(&target)
+
+	// Check if name not already used
+	if target.ExistsInConfig(parsedConfig) {
+		w.WriteHeader(400)
+		w.Write([]byte("Job name already in use."))
+		return
+	}
+	newScrapeConfig := target.ToScrapeConfig()
+	proxyURL, _ := url.Parse(configManager.ProxyURL) // Error is not checked because ProxyURL assumed to be correct
+	newScrapeConfig.HTTPClientConfig = config2.HTTPClientConfig{ProxyURL: config2.URL{proxyURL}}
+
+	// Add new ScrapeConfig to Config.ScrapeConfigs
+	parsedConfig.ScrapeConfigs = append(parsedConfig.ScrapeConfigs, &newScrapeConfig)
+
+	// Write new parsedConfig to file
+	configManager.WriteConfig(parsedConfig)
+	log.Println("Added job to config:", fmt.Sprint(target.ISD)+"-"+fmt.Sprint(target.AS)+" "+target.Name)
+
+	err = configManager.ReloadPrometheus()
+	if err != nil {
+		log.Println("Failed reloading Prometheus:", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(201)
+
 }
 
-func  ListTargets(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+func ListTargets(w http.ResponseWriter, r *http.Request) {
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		fmt.Println("Error while loading parsedConfig from file:", err)
 		w.WriteHeader(500)
@@ -69,7 +71,7 @@ func  ListTargets(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveTarget(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		fmt.Println("Error while loading parsedConfig from file:", err)
 		w.WriteHeader(500)
@@ -93,8 +95,8 @@ func RemoveTarget(w http.ResponseWriter, r *http.Request) {
 		}
 		parsedConfig.ScrapeConfigs = newScrapeConfigs
 
-		configManager.WriteConfig(parsedConfig, configManager.ConfigFile)
-		log.Println("Removed job from config:", fmt.Sprint(target.ISD) + "-" + fmt.Sprint(target.AS) + " " + target.Name)
+		configManager.WriteConfig(parsedConfig)
+		log.Println("Removed job from config:", fmt.Sprint(target.ISD)+"-"+fmt.Sprint(target.AS)+" "+target.Name)
 
 		err := configManager.ReloadPrometheus()
 		if err != nil {
@@ -107,7 +109,7 @@ func RemoveTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func RemoveStorage(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		fmt.Println("Error while loading parsedConfig from file:", err)
 		w.WriteHeader(400)
@@ -140,9 +142,9 @@ func RemoveStorage(w http.ResponseWriter, r *http.Request) {
 		}
 		parsedConfig.RemoteReadConfigs = newReadConfigs
 
-		configManager.WriteConfig(parsedConfig, configManager.ConfigFile)
+		configManager.WriteConfig(parsedConfig)
 		configManager.ReloadPrometheus()
-		log.Println("Removed remote read/write from config:", fmt.Sprint(storage.IA) + " " + storage.IP)
+		log.Println("Removed remote read/write from config:", fmt.Sprint(storage.IA)+" "+storage.IP)
 
 		err := configManager.ReloadPrometheus()
 		if err != nil {
@@ -170,7 +172,7 @@ func AddStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		log.Println("Error while parsing config file:", err)
 		w.WriteHeader(500)
@@ -181,7 +183,7 @@ func AddStorage(w http.ResponseWriter, r *http.Request) {
 		parsedConfig.RemoteWriteConfigs = append(parsedConfig.RemoteWriteConfigs, newRemoteWriteConfig)
 		parsedConfig.RemoteReadConfigs = append(parsedConfig.RemoteReadConfigs, newRemoteReadConfig)
 
-		configManager.WriteConfig(parsedConfig, configManager.ConfigFile)
+		configManager.WriteConfig(parsedConfig)
 		configManager.ReloadPrometheus()
 		log.Println("Added remote read/write to config:", fmt.Sprint(storage.IA)+" "+storage.IP)
 		w.WriteHeader(201)
@@ -192,7 +194,7 @@ func AddStorage(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListStorages(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := config.LoadFile(configManager.ConfigFile)
+	parsedConfig, err := configManager.LoadFile()
 	if err != nil {
 		fmt.Println("Error while loading config from file:", err)
 		w.WriteHeader(500)

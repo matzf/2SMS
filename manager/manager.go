@@ -1,19 +1,20 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"net/http"
+	"crypto/ecdsa"
 	"crypto/tls"
-	"log"
-	"flag"
-	"os"
-	"github.com/netsec-ethz/2SMS/common"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"crypto/ecdsa"
-	"net"
-	"io/ioutil"
 	"encoding/json"
+	"flag"
+	"io/ioutil"
+	"log"
+	"net"
+	"net/http"
+	"os"
+
+	"github.com/gorilla/mux"
+	"github.com/netsec-ethz/2SMS/common"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -22,7 +23,7 @@ var (
 	managerCert       string
 	managerPrivKey    string
 	managerIP         string
-	managerDNS		  string
+	managerDNS        string
 	noClientVerifPort string
 	clientVerifPort   string
 	managementPort    string
@@ -30,16 +31,16 @@ var (
 	waitingCSRDir     string
 	caKey             string = "ca/ca.key"
 	caCertFile        string = "ca/ca.crt"
-	caSerialFile	  string = "ca/serial"
-	caDir				string = "ca"
-	authDir			string = "auth"
-	ca *common.CA
-	local       snet.Addr
-	refuseSigning = true
-	httpsClient *http.Client
+	caSerialFile      string = "ca/serial"
+	caDir             string = "ca"
+	authDir           string = "auth"
+	ca                *common.CA
+	local             snet.Addr
+	refuseSigning     = true
+	httpsClient       *http.Client
 )
 
-func init() {
+func initManager() {
 	flag.StringVar(&managerCert, "manager.cert", "auth/manager.crt", "full chain manager's certificate file")
 	flag.StringVar(&managerPrivKey, "manager.key", "auth/manager.key", "manager's private key file")
 	flag.StringVar(&managerIP, "manager.IP", "127.0.0.1", "IP address of the manager machine")
@@ -56,7 +57,7 @@ func init() {
 	var err error
 	// Create directory to store auth data
 	if !common.FileExists(authDir) {
-		os.Mkdir(authDir, 0700)  // The private key is stored here, so permissions are restrictive
+		os.Mkdir(authDir, 0700) // The private key is stored here, so permissions are restrictive
 	}
 	if !common.FileExists(caDir) {
 		os.Mkdir(caDir, 0700)
@@ -69,13 +70,13 @@ func init() {
 	}
 	if !common.FileExists(caKey) {
 		name := &pkix.Name{
-			Organization:  []string{"SCIONLab"},
+			Organization:       []string{"SCIONLab"},
 			OrganizationalUnit: []string{"CA"},
-			Country:       []string{"CH"},
-			Province:      []string{"Zurich"},
-			Locality:      []string{"Zurich"},
+			Country:            []string{"CH"},
+			Province:           []string{"Zurich"},
+			Locality:           []string{"Zurich"},
 		}
-		duration := &common.Duration{1,0,0}
+		duration := &common.Duration{1, 0, 0}
 		ca, err = common.NewCA(name, duration, caKey, caSerialFile, caCertFile, local.IA)
 		if err != nil {
 			log.Fatal("Failed creating a new CA:", err)
@@ -98,11 +99,11 @@ func init() {
 			privKey, err = common.ReadECPrivKeyFromPEMFile(managerPrivKey)
 		}
 		name := pkix.Name{
-			Organization:  []string{"SCIONLab"},
+			Organization:       []string{"SCIONLab"},
 			OrganizationalUnit: []string{"Manager"},
-			Country:       []string{"CH"},
-			Province:      []string{"Zurich"},
-			Locality:      []string{"Zurich"},
+			Country:            []string{"CH"},
+			Province:           []string{"Zurich"},
+			Locality:           []string{"Zurich"},
 		}
 		duration := &common.Duration{1, 0, 0}
 		certBytes, err := ca.GenCert(name, privKey, duration, []string{managerDNS}, []net.IP{net.ParseIP(managerIP)})
@@ -141,10 +142,11 @@ func init() {
 		log.Println("Successfully verified ca certificate.")
 	}
 
-	httpsClient = common.CreateHttpsClient(caDir,  managerCert, managerPrivKey)
+	httpsClient = common.CreateHttpsClient(caDir, managerCert, managerPrivKey)
 }
 
 func main() {
+	initManager()
 	log.Println("Started Manager Application")
 
 	// HTTPS Server for PKI operations without client side verification
@@ -229,8 +231,8 @@ func main() {
 	//router.HandleFunc("/authorization/approve", approvePermissionRequest).Methods("POST")
 
 	srv := &http.Server{
-		Addr:      "127.0.0.1:" + managementPort,
-		Handler:   router,
+		Addr:    "127.0.0.1:" + managementPort,
+		Handler: router,
 	}
 	log.Fatal("Localhost HTTP server listening error:", srv.ListenAndServe())
 }
