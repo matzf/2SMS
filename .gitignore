@@ -1,1 +1,10 @@
 .DS_Store
+manager/manager
+scraper/scraper
+endpoint/endpoint
+testing_base/manager/
+testing_base/manager.out
+testing_base/scraper/
+testing_base/scraper.out
+testing_base/endpoint/
+testing_base/endpoint.out
