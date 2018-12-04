@@ -46,6 +46,9 @@ cp $(dirname $ENDPOINT)/node-exporter/node_exporter $BASEDIR/endpoint/node-expor
 
 echo 'Starting manager application'
 cd $BASEDIR/manager
+rm -r scrapers.json
+rm -r endpoints.json
+rm -r storages.json
 rm -f approved_certs/*
 rm -f ca/*
 rm -f auth/manager.*
