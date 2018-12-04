@@ -5,22 +5,52 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
 	"time"
+
+	"github.com/netsec-ethz/2SMS/common/types"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/crypto/cert"
 )
 
-// TODO: handle trc updates
-func Bootstrap(rootCertFile, bootstrapDataFile string, localIA addr.IA) error {
-	// Load local IA configuration
-	c, err := LoadConfig(localIA)
+func getSigningKey(IA addr.IA) []byte {
+	asCertFileNameRegex, err := regexp.Compile(fmt.Sprintf(`^ISD\d+-AS%s-V\d+.crt$`, IA.A.FileFmt()))
 	if err != nil {
-		return err
+		log.Fatalf("Internal error building regular expression \"%s\": %v", asCertFileNameRegex.String(), err)
 	}
+	scionDir := os.Getenv("SC")
+	certsDir := scionDir + fmt.Sprintf("/gen/ISD%d/AS%s/endhost/certs/", IA.I, IA.A.FileFmt())
+	fileInfos, err := ioutil.ReadDir(certsDir)
+	if err != nil {
+		log.Fatalf("Could not read endhost certs directory %s. Error is: %v", certsDir, err)
+	}
+	fileNames := []string{}
+	for _, fi := range fileInfos {
+		name := fi.Name()
+		if asCertFileNameRegex.MatchString(name) {
+			fileNames = append(fileNames, name)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(fileNames)))
+	filePath := filepath.Join(certsDir, fileNames[0])
+	log.Printf("Loading AS signing key from %s", filePath)
+	chain, err := cert.ChainFromFile(filePath, false)
+	if err != nil {
+		log.Fatalf("Cannot load AS certificate chain from %s: %v", filePath, err)
+	}
+	return chain.Leaf.SubjectSignKey
+}
+
+// Bootstrap boots the PKI validating the passed CA
+func Bootstrap(rootCertFile, bootstrapDataFile string, localIA addr.IA) error {
 	// Parse caData, which contains the manager's IA and raw certificate signature (sig) in json format
 	jsonBytes, err := ioutil.ReadFile(bootstrapDataFile)
 	if err != nil {
@@ -31,20 +61,12 @@ func Bootstrap(rootCertFile, bootstrapDataFile string, localIA addr.IA) error {
 	if err != nil {
 		return err
 	}
-	// Verify Trust Chain to manager's IA
-	chain := c.Store.GetNewestChain(bootstrapData.IA)
-	maxTRC := c.Store.GetNewestTRC(bootstrapData.IA.I)
-	chain.Verify(bootstrapData.IA, maxTRC)
-
-	// Get verifying key from cert
-	verifyKey := chain.Leaf.SubjectSignKey
-
+	verifyKey := getSigningKey(localIA)
 	// Load raw ca certificate
 	sigInput, err := ioutil.ReadFile(rootCertFile)
 	if err != nil {
 		return err
 	}
-
 	// Verify the signature
 	return crypto.Verify(sigInput, bootstrapData.RawSignature, verifyKey, "ed25519")
 }
@@ -60,7 +82,7 @@ func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csr
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs:      caCertPool,
+				RootCAs: caCertPool,
 			},
 		},
 	}
@@ -76,7 +98,7 @@ func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csr
 	// Repeatedly try to request the certificate
 	for !FileExists(certFile) {
 		log.Println("Requesting certificate")
-		resp, err := client.Post("https://" + managerAddress + ":" + managerPort + "/certificate/request", "application/base64", bytes.NewBuffer(data))
+		resp, err := client.Post("https://"+managerAddress+":"+managerPort+"/certificate/request", "application/base64", bytes.NewBuffer(data))
 		if err != nil {
 			log.Fatal(err)
 		}
