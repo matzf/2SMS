@@ -32,12 +32,17 @@ func getSigningKey(IA addr.IA) []byte {
 	if err != nil {
 		log.Fatalf("Could not read endhost certs directory %s. Error is: %v", certsDir, err)
 	}
+	// since there could be any number of valid AS certificate files, we take the last version
+	// for that, we sort the files like "ISD17-ASffaa_1_a-V1.crt" and pick the last one
 	fileNames := []string{}
 	for _, fi := range fileInfos {
 		name := fi.Name()
 		if asCertFileNameRegex.MatchString(name) {
 			fileNames = append(fileNames, name)
 		}
+	}
+	if len(fileNames) == 0 {
+		log.Fatalf("Could not find any valid certificate file in %s. Aborting", certsDir)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(fileNames)))
 	filePath := filepath.Join(certsDir, fileNames[0])
