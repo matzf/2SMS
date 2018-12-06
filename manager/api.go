@@ -340,6 +340,10 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err = ioutil.ReadAll(resp.Body)
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("removeEndpoint: failed to close response's body getting mappings: %v", err)
+	}
 	var mappings map[string]string
 	err = json.Unmarshal(data, &mappings)
 	if err != nil {
@@ -365,9 +369,13 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
 				return
 			}
-			httpsClient.Do(req)
+			resp, err = httpsClient.Do(req)
 			if err != nil {
 				log.Println("Error in removing scraper target:", err)
+			}
+			err = resp.Body.Close()
+			if err != nil {
+				log.Printf("removeEndpoint: failed to close response's body deleting endpont %v. Error is: %v", target, err)
 			}
 		}
 	}
@@ -418,7 +426,23 @@ func removeScraper(w http.ResponseWriter, r *http.Request) {
 	}
 	// Get scraper targets
 	resp, err := httpsClient.Get("https://" + scr.IP + ":" + scr.ManagePort + "/targets")
+	if err != nil {
+		log.Printf("removeScraper: error getting targets: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("removeScraper: error reading body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("removeScraper: error closing request's body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 	var targets []types.Target
 	json.Unmarshal(data, &targets)
 	// Compute list of endpoints (since mapping->endpoint is many-to-one)
@@ -427,11 +451,20 @@ func removeScraper(w http.ResponseWriter, r *http.Request) {
 		endpoints[target.IP] = getEndpointByIP(target.IP).ManagePort
 	}
 	// Remove all permissions for the removed scraper on each endpoint
+	w.WriteHeader(204)
 	for ip, port := range endpoints {
 		req, _ := http.NewRequest("DELETE", "https://"+ip+":"+port+"/"+scr.IA+":"+scr.IP+"/permissions", nil)
-		log.Println(httpsClient.Do(req))
+		resp, err = httpsClient.Do(req)
+		if err != nil {
+			log.Printf("removeScraper: error deleting scraper on %v: %v", req.URL, err)
+			w.WriteHeader(500)
+			continue
+		}
+		err = resp.Body.Close()
+		if resp != nil {
+			log.Printf("removeScraper: could not close response's body after deleting scraper on %v. Error is: %v", req.URL, err)
+		}
 	}
-	w.WriteHeader(204)
 }
 
 // Returns the list of all registered scrapers.
@@ -637,6 +670,17 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	// Redirection call path are defined to have /component/address as prefix
 	redirAddr := "https://" + strings.SplitN(r.URL.Path, "/", 3)[2]
 	var resp *http.Response
+	defer func() {
+		if resp == nil {
+			log.Printf("DEBUG redirect not redirecting to %s, resp is nul", redirAddr)
+			return
+		}
+		log.Printf("DEBUG redirect redirecting to %s", redirAddr)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("redirect to %s: could not close response's body: %v", redirAddr, err)
+		}
+	}()
 	var err error
 	switch r.Method {
 	case "GET":
@@ -655,5 +699,8 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		log.Printf("redirect to %s:error copying body: %v", redirAddr, err)
+	}
 }
