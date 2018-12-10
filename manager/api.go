@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -173,10 +172,13 @@ func addTargetToScrapers(target *types.Target, byts []byte) []types.Scraper {
 
 // byts is the json binary encoding of the target, used just to avoid encoding/decoding multiple times
 func addTargetToScraper(byts []byte, scraper *types.Scraper) {
-	client := common.CreateHttpsClient(caDir, managerCert, managerPrivKey)
-	_, err := client.Post("https://"+scraper.IP+":"+scraper.ManagePort+"/targets", "application/json", bytes.NewReader(byts))
+	resp, err := httpsClient.Post("https://"+scraper.IP+":"+scraper.ManagePort+"/targets", "application/json", bytes.NewReader(byts))
 	if err != nil {
 		log.Println("Error in adding scraper target:", err)
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("addTargetToScraper: failed to close response's body getting scraper's response: %v", err)
 	}
 }
 
@@ -185,82 +187,17 @@ func notifyRemovedMapping(w http.ResponseWriter, r *http.Request) {
 	log.Println("Notify removed mapping received")
 	// Remove target from each scraper
 	for _, scr := range getScrapers() {
-		client := common.CreateHttpsClient(caDir, managerCert, managerPrivKey)
 		req, err := http.NewRequest("DELETE", "https://"+scr.IP+":"+scr.ManagePort+"/targets", r.Body)
-		resp, err := client.Do(req)
+		resp, err := httpsClient.Do(req)
 		if err != nil {
 			log.Println("Error in removing scraper target:", err)
 		}
 		io.Copy(w, resp.Body)
-	}
-}
-
-// Returns a list with all certificate requests in the wait list
-func getRequests(w http.ResponseWriter, r *http.Request) {
-	// List waiting directory
-	files, err := ioutil.ReadDir(waitingCSRDir)
-	if err != nil {
-		log.Println("Error in reading waiting csr directory:", err)
-		w.WriteHeader(500)
-		return
-	}
-	// Read each request and append output to the list
-	var list []x509.CertificateRequest
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".csr") {
-			csr, err := common.ReadCSRFromPEMFile(waitingCSRDir + "/" + file.Name())
-			if err != nil {
-				log.Println("Error in parsing ", file.Name())
-			} else {
-				list = append(list, *csr)
-			}
+		err = resp.Body.Close()
+		if err != nil {
+			log.Printf("notifyRemovedMapping: failed to close response's body getting scraper's response: %v", err)
 		}
 	}
-	// Write the list into w as JSON
-	jsonList, err := json.Marshal(list)
-	if err != nil {
-		log.Println("Error in marshalling csrs list")
-		w.WriteHeader(500)
-		return
-	}
-	w.Write(jsonList)
-	w.Header().Add("content-type", "application/json")
-}
-
-// Approves the certificate signing request for the given entity and creates the corresponding certificate
-func approveRequest(w http.ResponseWriter, r *http.Request) {
-	// Parse body to get csr file name
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println("Error reading request body:", err)
-		w.WriteHeader(500)
-		return
-	}
-	var name string
-	if err := json.Unmarshal(data, &name); err != nil {
-		w.Write([]byte("Error unmarshalling json: " + err.Error()))
-		w.WriteHeader(400)
-		return
-	}
-	csrFile := waitingCSRDir + "/" + name + ".csr"
-	// Load CSr from file
-	csr, err := common.ReadCSRFromPEMFile(csrFile)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-	// Create certificate
-	crtFile := approvedCertsDir + "/" + name + ".crt"
-	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1, 0, 0})
-	if err != nil {
-		log.Println("Failed generating certificate:", err)
-		w.WriteHeader(500)
-		return
-	}
-	common.WriteToPEMFile(crtFile, "CERTIFICATE", certBytes)
-	w.WriteHeader(204)
-	// Remove csr from list (waiting folder)
-	os.Remove(csrFile)
 }
 
 // Registers a new endpoint by writing it in the endpoints' list and creating targets for each mapping at responsible scrapers
@@ -340,6 +277,10 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err = ioutil.ReadAll(resp.Body)
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("removeEndpoint: failed to close response's body getting mappings: %v", err)
+	}
 	var mappings map[string]string
 	err = json.Unmarshal(data, &mappings)
 	if err != nil {
@@ -365,9 +306,13 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
 				return
 			}
-			httpsClient.Do(req)
+			resp, err = httpsClient.Do(req)
 			if err != nil {
 				log.Println("Error in removing scraper target:", err)
+			}
+			err = resp.Body.Close()
+			if err != nil {
+				log.Printf("removeEndpoint: failed to close response's body deleting endpont %v. Error is: %v", target, err)
 			}
 		}
 	}
@@ -418,7 +363,23 @@ func removeScraper(w http.ResponseWriter, r *http.Request) {
 	}
 	// Get scraper targets
 	resp, err := httpsClient.Get("https://" + scr.IP + ":" + scr.ManagePort + "/targets")
+	if err != nil {
+		log.Printf("removeScraper: error getting targets: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("removeScraper: error reading body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("removeScraper: error closing request's body: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 	var targets []types.Target
 	json.Unmarshal(data, &targets)
 	// Compute list of endpoints (since mapping->endpoint is many-to-one)
@@ -427,11 +388,20 @@ func removeScraper(w http.ResponseWriter, r *http.Request) {
 		endpoints[target.IP] = getEndpointByIP(target.IP).ManagePort
 	}
 	// Remove all permissions for the removed scraper on each endpoint
+	w.WriteHeader(204)
 	for ip, port := range endpoints {
 		req, _ := http.NewRequest("DELETE", "https://"+ip+":"+port+"/"+scr.IA+":"+scr.IP+"/permissions", nil)
-		log.Println(httpsClient.Do(req))
+		resp, err = httpsClient.Do(req)
+		if err != nil {
+			log.Printf("removeScraper: error deleting scraper on %v: %v", req.URL, err)
+			w.WriteHeader(500)
+			continue
+		}
+		err = resp.Body.Close()
+		if resp != nil {
+			log.Printf("removeScraper: could not close response's body after deleting scraper on %v. Error is: %v", req.URL, err)
+		}
 	}
-	w.WriteHeader(204)
 }
 
 // Returns the list of all registered scrapers.
@@ -532,12 +502,20 @@ func addScraperTarget(w http.ResponseWriter, r *http.Request) {
 	// Add scraper to mapping owner role
 	resp, err := httpsClient.Post("https://"+target.IP+":"+endpoint.ManagePort+"/"+scraperAddr+"/roles", "application/json", bytes.NewReader(jsonRole))
 	if err != nil || resp.Status != "201" {
-		log.Println("Failed creating owner role:", resp.Status, err)
+		log.Println("Failed adding scraper to owner role:", resp.Status, err)
+	}
+	err = resp.Body.Close()
+	if resp != nil {
+		log.Printf("addScraperTarget: could not close response's body after adding scraper to owner role. Error is: %v", err)
 	}
 	// Enable scraping
 	resp, err = httpsClient.Get("https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/enable")
-	if err != nil || resp.Status != "204" {
+	if err != nil || resp.Status != "201" {
 		log.Println("Failed enabling scraping:", resp.Status, err)
+	}
+	err = resp.Body.Close()
+	if resp != nil {
+		log.Printf("addScraperTarget: could not close response's body after enabling scraper for scraping. Error is: %v", err)
 	}
 }
 
@@ -567,9 +545,24 @@ func removeScraperTarget(w http.ResponseWriter, r *http.Request) {
 	}
 	endpoint := getEndpointByIP(target.IP)
 	req, err := http.NewRequest("DELETE", "https://"+target.IP+":"+endpoint.ManagePort+"/"+scraperAddr+"/roles", bytes.NewReader(jsonRole))
-	httpsClient.Do(req)
+	resp, err := httpsClient.Do(req)
+	if err != nil || resp.Status != "204" {
+		log.Println("Failed removing owner role from scraper:", resp.Status, err)
+	}
+	err = resp.Body.Close()
+	if resp != nil {
+		log.Printf("removeScraperTarget: could not close response's body after removing scraper's owner role. Error is: %v", err)
+	}
 	// Block scraping
-	httpsClient.Get("https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/block")
+	resp, err = httpsClient.Get("https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/block")
+	if err != nil || resp.Status != "204" {
+		log.Println("Failed blocking scraping:", resp.Status, err)
+	}
+	err = resp.Body.Close()
+	if resp != nil {
+		log.Printf("removeScraperTarget: could not close response's body after blocking scraper for scraping. Error is: %v", err)
+	}
+
 }
 
 func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
@@ -619,6 +612,10 @@ func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
 				} else {
 					log.Printf("Added owner role for %s to scraper %s at endpoint %s.", target.Path, source, end.IP)
 				}
+				err = resp.Body.Close()
+				if resp != nil {
+					log.Printf("syncScraperTargets: could not close response's body after adding owner role to scraper. Error is: %v", err)
+				}
 				// Assign a scrape permission for the mapping to the scraper
 				resp, err = httpsClient.Get("https://" + endpointAddress + "/" + source + target.Path + "/enable")
 				if err != nil {
@@ -627,6 +624,10 @@ func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
 					log.Printf("Add scrape permission for %s to scraper %s at endpoint %s failed. Response was: %v", target.Path, source, end.IP, resp)
 				} else {
 					log.Printf("Added scrape permission for %s to scraper %s at endpoint %s.", target.Path, source, end.IP)
+				}
+				err = resp.Body.Close()
+				if resp != nil {
+					log.Printf("syncScraperTargets: could not close response's body after enabling scraper for scraping. Error is: %v", err)
 				}
 			}
 		}
@@ -637,6 +638,17 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 	// Redirection call path are defined to have /component/address as prefix
 	redirAddr := "https://" + strings.SplitN(r.URL.Path, "/", 3)[2]
 	var resp *http.Response
+	defer func() {
+		if resp == nil {
+			log.Printf("DEBUG redirect not redirecting to %s, resp is nul", redirAddr)
+			return
+		}
+		log.Printf("DEBUG redirect redirecting to %s", redirAddr)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("redirect to %s: could not close response's body: %v", redirAddr, err)
+		}
+	}()
 	var err error
 	switch r.Method {
 	case "GET":
@@ -655,5 +667,9 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		log.Printf("redirect to %s:error copying body: %v", redirAddr, err)
+	}
+
 }
