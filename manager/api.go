@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -193,74 +192,6 @@ func notifyRemovedMapping(w http.ResponseWriter, r *http.Request) {
 		}
 		io.Copy(w, resp.Body)
 	}
-}
-
-// Returns a list with all certificate requests in the wait list
-func getRequests(w http.ResponseWriter, r *http.Request) {
-	// List waiting directory
-	files, err := ioutil.ReadDir(waitingCSRDir)
-	if err != nil {
-		log.Println("Error in reading waiting csr directory:", err)
-		w.WriteHeader(500)
-		return
-	}
-	// Read each request and append output to the list
-	var list []x509.CertificateRequest
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".csr") {
-			csr, err := common.ReadCSRFromPEMFile(waitingCSRDir + "/" + file.Name())
-			if err != nil {
-				log.Println("Error in parsing ", file.Name())
-			} else {
-				list = append(list, *csr)
-			}
-		}
-	}
-	// Write the list into w as JSON
-	jsonList, err := json.Marshal(list)
-	if err != nil {
-		log.Println("Error in marshalling csrs list")
-		w.WriteHeader(500)
-		return
-	}
-	w.Write(jsonList)
-	w.Header().Add("content-type", "application/json")
-}
-
-// Approves the certificate signing request for the given entity and creates the corresponding certificate
-func approveRequest(w http.ResponseWriter, r *http.Request) {
-	// Parse body to get csr file name
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println("Error reading request body:", err)
-		w.WriteHeader(500)
-		return
-	}
-	var name string
-	if err := json.Unmarshal(data, &name); err != nil {
-		w.Write([]byte("Error unmarshalling json: " + err.Error()))
-		w.WriteHeader(400)
-		return
-	}
-	csrFile := waitingCSRDir + "/" + name + ".csr"
-	// Load CSr from file
-	csr, err := common.ReadCSRFromPEMFile(csrFile)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-	// Create certificate
-	crtFile := approvedCertsDir + "/" + name + ".crt"
-	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1, 0, 0})
-	if err != nil {
-		log.Println("Failed generating certificate:", err)
-		w.WriteHeader(500)
-		return
-	}
-	common.WriteToPEMFile(crtFile, "CERTIFICATE", certBytes)
-	w.WriteHeader(204)
-	// Remove csr from list (waiting folder)
-	os.Remove(csrFile)
 }
 
 // Registers a new endpoint by writing it in the endpoints' list and creating targets for each mapping at responsible scrapers
