@@ -1,10 +1,10 @@
 package types
 
 type Scraper struct {
-	IA string   `json:"ia"`
-	IP string 	`json:"ip"`
-	ManagePort string `json:"manage_port"`
-	ISDs []string `json:"isds"`
+	IA         string   `json:"ia"`
+	IP         string   `json:"ip"`
+	ManagePort string   `json:"manage_port"`
+	ISDs       []string `json:"isds"`
 }
 
 func (scr *Scraper) Equal(scr_b *Scraper) bool {
@@ -12,7 +12,7 @@ func (scr *Scraper) Equal(scr_b *Scraper) bool {
 }
 
 func (scr *Scraper) Covers(isd string) bool {
-	for _, i := range(scr.ISDs) {
+	for _, i := range scr.ISDs {
 		if i == isd {
 			return true
 		}

@@ -2,64 +2,64 @@ package main
 
 import (
 	"crypto/tls"
-	"net/http"
-	"io"
-	"flag"
-	"log"
-	"fmt"
-	"os"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
 
 	"github.com/netsec-ethz/2SMS/common"
 
-	"github.com/gorilla/mux"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"net"
-	"github.com/scionproto/scion/go/lib/snet"
-	sd "github.com/scionproto/scion/go/lib/sciond"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"bytes"
-	"io/ioutil"
+	"encoding/gob"
 	"errors"
+	"github.com/gorilla/mux"
 	"github.com/juagargi/temp_squic"
 	"github.com/lucas-clemente/quic-go"
-	"encoding/gob"
+	"github.com/netsec-ethz/2SMS/common/types"
+	sd "github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
+	"io/ioutil"
+	"net"
 )
 
 var (
-	caCertsDir		string
-	internalPort 		string
-	externalPort 		string
-	storageCert 		string
-	storagePrivKey 		string
-	storageCSR			string
-	managementAPIPort 	string
-	managerPort			string
-	storageIP			string
-	storageDNS			string
-	managerIP		string
-	managerVerifPort			string
-	managerUnverifPort			string
-	local       snet.Addr
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	caCertsDir         string
+	internalPort       string
+	externalPort       string
+	storageCert        string
+	storagePrivKey     string
+	storageCSR         string
+	managementAPIPort  string
+	managerPort        string
+	storageIP          string
+	storageDNS         string
+	managerIP          string
+	managerVerifPort   string
+	managerUnverifPort string
+	local              snet.Addr
+	sciond             = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher         = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
-	authDir			string = "auth"
+	authDir                 string = "auth"
 	localhostManagementPort string
-	writePath string
-	readPath string
-	dbName string
+	writePath               string
+	readPath                string
+	dbName                  string
 )
 
 func init() {
 	flag.StringVar(&internalPort, "storage.ports.internal_db", "8086", "localhost port where database is listening")
-	flag.StringVar(&externalPort,"storage.ports.external_write", "8186", "externally exposed port")
+	flag.StringVar(&externalPort, "storage.ports.external_write", "8186", "externally exposed port")
 	flag.StringVar(&managementAPIPort, "storage.ports.management", "9900", "port wher the management API is exposed")
-	flag.StringVar(&storageCert,"storage.cert", "auth/storage.crt", "full chain storage's certificate file")
-	flag.StringVar(&storagePrivKey,"storage.key", "auth/storage.key", "storage's private key file")
-	flag.StringVar(&storageCSR,"storage.csr", "auth/storage.csr", "csr for the key")
+	flag.StringVar(&storageCert, "storage.cert", "auth/storage.crt", "full chain storage's certificate file")
+	flag.StringVar(&storagePrivKey, "storage.key", "auth/storage.key", "storage's private key file")
+	flag.StringVar(&storageCSR, "storage.csr", "auth/storage.csr", "csr for the key")
 	flag.StringVar(&localhostManagementPort, "storage.ports.local", "9999", "port where the local management API is exposed")
 
 	flag.StringVar(&storageDNS, "storage.DNS", "localhost", "DNS name of storage machine")
@@ -80,13 +80,12 @@ func init() {
 
 	flag.Parse()
 
-
 	if *sciond == "" {
 		*sciond = sd.GetDefaultSCIONDPath(nil)
 	}
 	// Create directory to store auth data
 	if !common.FileExists(authDir) {
-		os.Mkdir(authDir, 0700)  // The private key is stored here, so permissions are restrictive
+		os.Mkdir(authDir, 0700) // The private key is stored here, so permissions are restrictive
 	}
 	if !common.FileExists(caCertsDir) {
 		os.Mkdir(caCertsDir, 0700)
@@ -96,7 +95,7 @@ func init() {
 	common.InitNetwork(local, sciond, dispatcher)
 
 	// Bootstrap PKI
-	err := common.Bootstrap(caCertsDir + "/ca.crt", caCertsDir + "/bootstrap.json", local.IA)
+	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json", local.IA)
 	if err != nil {
 		log.Fatal("Verification of ca certificate failed:", err)
 	} else {
@@ -110,11 +109,11 @@ func init() {
 		bts, _ := x509.MarshalECPrivateKey(privKey)
 		common.WriteToPEMFile(storagePrivKey, "ECDSA PRIVATE KEY", bts)
 		name := pkix.Name{
-			Organization:  []string{"SCIONLab"},
+			Organization:       []string{"SCIONLab"},
 			OrganizationalUnit: []string{"Storage"},
-			Country:       []string{"CH"},
-			Province:      []string{"Zurich"},
-			Locality:      []string{"Zurich"},
+			Country:            []string{"CH"},
+			Province:           []string{"Zurich"},
+			Locality:           []string{"Zurich"},
 		}
 		bts, _ = common.GenCertSignRequest(name, privKey, []string{storageDNS}, []net.IP{net.ParseIP(storageIP)})
 		common.WriteToPEMFile(storageCSR, "CERTIFICATE REQUEST", bts)
@@ -133,13 +132,13 @@ func init() {
 		data, _ := json.Marshal(types.Storage{
 			IA:         local.IA.String(),
 			IP:         local.Host.IP().String(),
-			Port:  		fmt.Sprint(local.L4Port),
+			Port:       fmt.Sprint(local.L4Port),
 			ManagePort: managementAPIPort,
 		})
 		if err != nil {
 			log.Fatal("Failed marshalling Storage struct:", err)
 		}
-		resp, err := client.Post("https://" + managerIP + ":" + managerVerifPort + "/storages/register", "application/json", bytes.NewBuffer(data))
+		resp, err := client.Post("https://"+managerIP+":"+managerVerifPort+"/storages/register", "application/json", bytes.NewBuffer(data))
 		if err != nil {
 			log.Fatal("Failed sending registration request:", err)
 		}
@@ -162,9 +161,8 @@ func main() {
 		log.Fatal("HTTPS server listening error: ", srv.ListenAndServeTLS(storageCert, storagePrivKey))
 	}()
 
-
 	// SCION server
-	go func(){
+	go func() {
 		log.Println("Starting SCION server")
 		squic.Init(storagePrivKey, storageCert)
 
@@ -199,8 +197,8 @@ func main() {
 
 	go func() {
 		srv := &http.Server{
-			Addr:      "127.0.0.1:" + localhostManagementPort,
-			Handler:   router,
+			Addr:    "127.0.0.1:" + localhostManagementPort,
+			Handler: router,
 		}
 		log.Println("localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()
@@ -257,7 +255,7 @@ func handleQUICSession(qsess quic.Session, client http.Client) {
 	}
 }
 
-type handler struct{
+type handler struct {
 	client http.Client
 }
 
@@ -268,9 +266,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	//db_name, _ := req.URL.Query()["db"]
 	path := "http://127.0.0.1:" + internalPort // + req.URL.Path + "?" + "db=" + db_name[0]
 	if req.URL.Path == "/write" {
-		resp, err = h.client.Post(path + writePath + "?" + "db=" + dbName, "application/x-protobuf", req.Body)
+		resp, err = h.client.Post(path+writePath+"?"+"db="+dbName, "application/x-protobuf", req.Body)
 	} else if req.URL.Path == "/read" {
-		resp, err = h.client.Post(path + readPath + "?" + "db=" + dbName, "application/x-protobuf", req.Body)
+		resp, err = h.client.Post(path+readPath+"?"+"db="+dbName, "application/x-protobuf", req.Body)
 	} else {
 		err = errors.New("Unsupported action: " + req.URL.Path)
 	}

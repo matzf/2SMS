@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/prometheus/prometheus/config"
 	config2 "github.com/prometheus/common/config"
+	"github.com/prometheus/prometheus/config"
 	"net/url"
 	"regexp"
 )
@@ -19,11 +19,11 @@ func (str *Storage) Equal(str_b *Storage) bool {
 }
 
 func (str *Storage) BuildWriteURL() string {
-	return "http://" + str.IP +":" + str.Port + "/" + str.IA + "/write"
+	return "http://" + str.IP + ":" + str.Port + "/" + str.IA + "/write"
 }
 
 func (str *Storage) BuildReadURL() string {
-	return "http://" + str.IP +":" + str.Port + "/" + str.IA + "/read"
+	return "http://" + str.IP + ":" + str.Port + "/" + str.IA + "/read"
 }
 
 func (str *Storage) ExistsInConfig(currentConfig *config.Config) bool {
@@ -68,7 +68,7 @@ func (str *Storage) ToRemoteConfigs(proxyUrl string) (*config.RemoteWriteConfig,
 
 // Assumption: for every remote write config there is a corresponding read config
 func (str *Storage) FromRemoteConfig(rw *config.RemoteWriteConfig) {
-	re := regexp.MustCompile( `http://(.+):(.+)/(.+)/(.+)`) // IP:Port/IA/write
+	re := regexp.MustCompile(`http://(.+):(.+)/(.+)/(.+)`) // IP:Port/IA/write
 	// Parse write url into its subcomponents
 	groups := re.FindStringSubmatch(rw.URL.String())
 	str.IP = groups[1]

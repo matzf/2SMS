@@ -11,9 +11,9 @@ import (
 )
 
 type scraperProxyHandler struct {
-	httpsClient		*http.Client
-	scionClient		*SCIONClient
-	enableQUIC		bool
+	httpsClient *http.Client
+	scionClient *SCIONClient
+	enableQUIC  bool
 }
 
 func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -39,12 +39,12 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(500)
 			return
 		}
-		host := ip + ":" + fmt.Sprint(httpPort + 1)
+		host := ip + ":" + fmt.Sprint(httpPort+1)
 		if r.Method == http.MethodGet {
 			// Make scrape GET request
 			resp, err = sph.httpsClient.Get("https://" + host + r.URL.Path)
 		} else if r.Method == http.MethodPost {
-			resp, err = sph.httpsClient.Post("https://"+ host +r.URL.Path, "application/x-protobuf", r.Body)
+			resp, err = sph.httpsClient.Post("https://"+host+r.URL.Path, "application/x-protobuf", r.Body)
 		} else {
 			err = errors.New("Unsupported method: " + r.Method)
 		}

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"io/ioutil"
-	"log"
 	"encoding/json"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
+	"io/ioutil"
+	"log"
 )
 
 func getScrapers() []types.Scraper {

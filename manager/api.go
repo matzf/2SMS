@@ -1,22 +1,22 @@
 package main
 
 import (
-	"net/http"
-	"io/ioutil"
+	"bytes"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"os"
-	"strings"
+	"encoding/pem"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/netsec-ethz/2SMS/common"
-	"log"
-	"io"
 	"github.com/netsec-ethz/2SMS/common/types"
-	"crypto/x509"
-	"encoding/pem"
-	"bytes"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 	"time"
-	"fmt"
 )
 
 // Requires a CSR, verifies it's validity and, if it is allowed, generates and returns a certificate.
@@ -72,7 +72,7 @@ func requestCert(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: add some sort of verification (e.g. registration token)
 	// Create new certificate
-	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1,0,0})
+	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1, 0, 0})
 	if err != nil {
 		log.Println("Failed generating certificate:", err)
 		w.WriteHeader(400)
@@ -162,7 +162,7 @@ func notifyAddedMapping(w http.ResponseWriter, r *http.Request) {
 func addTargetToScrapers(target *types.Target, byts []byte) []types.Scraper {
 	addedTo := []types.Scraper{}
 	// Add new target to each scraper
-	for _, scr := range(getScrapers()) {
+	for _, scr := range getScrapers() {
 		if scr.Covers(target.ISD) {
 			addTargetToScraper(byts, &scr)
 			addedTo = append(addedTo, scr)
@@ -184,9 +184,9 @@ func addTargetToScraper(byts []byte, scraper *types.Scraper) {
 func notifyRemovedMapping(w http.ResponseWriter, r *http.Request) {
 	log.Println("Notify removed mapping received")
 	// Remove target from each scraper
-	for _, scr := range(getScrapers()) {
-		client := common.CreateHttpsClient(caDir,  managerCert, managerPrivKey)
-		req, err := http.NewRequest("DELETE", "https://" + scr.IP + ":" + scr.ManagePort + "/targets", r.Body)
+	for _, scr := range getScrapers() {
+		client := common.CreateHttpsClient(caDir, managerCert, managerPrivKey)
+		req, err := http.NewRequest("DELETE", "https://"+scr.IP+":"+scr.ManagePort+"/targets", r.Body)
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Println("Error in removing scraper target:", err)
@@ -251,7 +251,7 @@ func approveRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	// Create certificate
 	crtFile := approvedCertsDir + "/" + name + ".crt"
-	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1,0,0})
+	certBytes, err := ca.GenCertFromCSR(csr, &common.Duration{1, 0, 0})
 	if err != nil {
 		log.Println("Failed generating certificate:", err)
 		w.WriteHeader(500)
@@ -334,7 +334,7 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get all Enpoint's targets
-	resp, err := httpsClient.Get("https://" + end.IP +":" + end.ManagePort + "/mappings")
+	resp, err := httpsClient.Get("https://" + end.IP + ":" + end.ManagePort + "/mappings")
 	if err != nil {
 		w.WriteHeader(500)
 		return
@@ -348,7 +348,7 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove endpoint targets from each scrapers like in notify removed mapping
-	for _, scr := range (getScrapers()) {
+	for _, scr := range getScrapers() {
 		for path := range mappings {
 			target := types.Target{}
 			target.AS = local.IA.A.String()
@@ -428,7 +428,7 @@ func removeScraper(w http.ResponseWriter, r *http.Request) {
 	}
 	// Remove all permissions for the removed scraper on each endpoint
 	for ip, port := range endpoints {
-		req, _ := http.NewRequest("DELETE", "https://" + ip + ":" + port + "/" + scr.IA + ":" + scr.IP + "/permissions", nil)
+		req, _ := http.NewRequest("DELETE", "https://"+ip+":"+port+"/"+scr.IA+":"+scr.IP+"/permissions", nil)
 		log.Println(httpsClient.Do(req))
 	}
 	w.WriteHeader(204)
@@ -530,12 +530,12 @@ func addScraperTarget(w http.ResponseWriter, r *http.Request) {
 	}
 	endpoint := getEndpointByIP(target.IP)
 	// Add scraper to mapping owner role
-	resp, err := httpsClient.Post( "https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + "/roles", "application/json", bytes.NewReader(jsonRole))
+	resp, err := httpsClient.Post("https://"+target.IP+":"+endpoint.ManagePort+"/"+scraperAddr+"/roles", "application/json", bytes.NewReader(jsonRole))
 	if err != nil || resp.Status != "201" {
 		log.Println("Failed creating owner role:", resp.Status, err)
 	}
 	// Enable scraping
-	resp, err = httpsClient.Get( "https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/enable")
+	resp, err = httpsClient.Get("https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/enable")
 	if err != nil || resp.Status != "204" {
 		log.Println("Failed enabling scraping:", resp.Status, err)
 	}
@@ -566,10 +566,10 @@ func removeScraperTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	endpoint := getEndpointByIP(target.IP)
-	req, err := http.NewRequest("DELETE", "https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + "/roles", bytes.NewReader(jsonRole))
+	req, err := http.NewRequest("DELETE", "https://"+target.IP+":"+endpoint.ManagePort+"/"+scraperAddr+"/roles", bytes.NewReader(jsonRole))
 	httpsClient.Do(req)
 	// Block scraping
-	httpsClient.Get( "https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/block")
+	httpsClient.Get("https://" + target.IP + ":" + endpoint.ManagePort + "/" + scraperAddr + target.Path + "/block")
 }
 
 func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
@@ -611,7 +611,7 @@ func syncScraperTargets(w http.ResponseWriter, r *http.Request) {
 				jsonRole, _ := json.Marshal(target.Name + "_owner")
 				source := scraper.IA + ":" + scraper.IP
 				endpointAddress := end.IP + ":" + end.ManagePort
-				resp, err := httpsClient.Post("https://" + endpointAddress + "/" + source +"/roles", "application/json", bytes.NewReader(jsonRole))
+				resp, err := httpsClient.Post("https://"+endpointAddress+"/"+source+"/roles", "application/json", bytes.NewReader(jsonRole))
 				if err != nil {
 					log.Printf("Post request for adding role failed with error: %v", err)
 				} else if resp.StatusCode != http.StatusNoContent {
