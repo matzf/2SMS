@@ -1,11 +1,11 @@
 package types
 
 type Endpoint struct {
-	IA string   `json:"ia"`
-	IP string 	`json:"ip"`
-	ScrapePort string `json:"scrape_port"`
-	ManagePort string `json:"manage_port"`
-	Paths []string `json:"paths"`
+	IA         string   `json:"ia"`
+	IP         string   `json:"ip"`
+	ScrapePort string   `json:"scrape_port"`
+	ManagePort string   `json:"manage_port"`
+	Paths      []string `json:"paths"`
 }
 
 func (end *Endpoint) Equal(end_b *Endpoint) bool {

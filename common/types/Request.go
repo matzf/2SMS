@@ -2,10 +2,10 @@ package types
 
 import (
 	"crypto/tls"
-	"net/http"
-	"mime/multipart"
-	"net/url"
 	"io"
+	"mime/multipart"
+	"net/http"
+	"net/url"
 )
 
 type Request struct {

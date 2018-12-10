@@ -1,18 +1,18 @@
 package main
 
 import (
-	"net/http"
-	"github.com/prometheus/client_model/go"
 	"bytes"
-	"github.com/prometheus/common/expfmt"
-	"mime"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
-	"io"
+	"github.com/prometheus/client_model/go"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
+	"io"
+	"mime"
+	"net/http"
 )
 
 // Taken from: prom2json.ParseResponse
-func DecodeResponseBody(resp *http.Response) []*io_prometheus_client.MetricFamily{
+func DecodeResponseBody(resp *http.Response) []*io_prometheus_client.MetricFamily {
 	metrics := []*io_prometheus_client.MetricFamily{}
 	mediatype, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if err == nil && mediatype == "application/vnd.google.protobuf" &&

@@ -1,21 +1,21 @@
 package common
 
 import (
-	"net/http"
 	"bytes"
 	"log"
+	"net/http"
 
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"os"
 
 	"fmt"
-	"path"
 	"github.com/juagargi/temp_squic"
-	"io/ioutil"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/cert_srv/conf"
+	"github.com/scionproto/scion/go/lib/addr"
+	"io/ioutil"
+	"path"
 )
 
 func LoadConfig(ia addr.IA) (*conf.Conf, error) {
@@ -48,97 +48,97 @@ func CopyRequestToQUIC(r http.Request) types.Request {
 		log.Println("Failed reading request body:", err)
 	}
 	return types.Request{
-		Method: r.Method,
-		URL: r.URL,
-		Proto: r.Proto,
-		ProtoMajor: r.ProtoMajor,
-		ProtoMinor: r.ProtoMinor,
-		Header: r.Header,
-		Body: body,
-		GetBody: r.GetBody,
-		ContentLength: r.ContentLength,
+		Method:           r.Method,
+		URL:              r.URL,
+		Proto:            r.Proto,
+		ProtoMajor:       r.ProtoMajor,
+		ProtoMinor:       r.ProtoMinor,
+		Header:           r.Header,
+		Body:             body,
+		GetBody:          r.GetBody,
+		ContentLength:    r.ContentLength,
 		TransferEncoding: r.TransferEncoding,
-		Close: r.Close,
-		Host: r.Host,
-		Form: r.Form,
-		PostForm: r.PostForm,
-		MultipartForm: r.MultipartForm,
-		Trailer: r.Trailer,
-		RemoteAddr: r.RemoteAddr,
-		RequestURI: r.RequestURI,
-		TLS: r.TLS,
-		Cancel: r.Cancel,
-		Response: r.Response,
+		Close:            r.Close,
+		Host:             r.Host,
+		Form:             r.Form,
+		PostForm:         r.PostForm,
+		MultipartForm:    r.MultipartForm,
+		Trailer:          r.Trailer,
+		RemoteAddr:       r.RemoteAddr,
+		RequestURI:       r.RequestURI,
+		TLS:              r.TLS,
+		Cancel:           r.Cancel,
+		Response:         r.Response,
 	}
 }
 
 func NewRequestFromQUIC(sr types.Request) http.Request {
 	body := ioutil.NopCloser(bytes.NewReader(sr.Body))
 	return http.Request{
-		Method: sr.Method,
-		URL: sr.URL,
-		Proto: sr.Proto,
-		ProtoMajor: sr.ProtoMajor,
-		ProtoMinor: sr.ProtoMinor,
-		Header: sr.Header,
-		Body: body,
-		GetBody: sr.GetBody,
-		ContentLength: sr.ContentLength,
+		Method:           sr.Method,
+		URL:              sr.URL,
+		Proto:            sr.Proto,
+		ProtoMajor:       sr.ProtoMajor,
+		ProtoMinor:       sr.ProtoMinor,
+		Header:           sr.Header,
+		Body:             body,
+		GetBody:          sr.GetBody,
+		ContentLength:    sr.ContentLength,
 		TransferEncoding: sr.TransferEncoding,
-		Close: sr.Close,
-		Host: sr.Host,
-		Form: sr.Form,
-		PostForm: sr.PostForm,
-		MultipartForm: sr.MultipartForm,
-		Trailer: sr.Trailer,
-		RemoteAddr: sr.RemoteAddr,
-		RequestURI: sr.RequestURI,
-		TLS: sr.TLS,
-		Cancel: sr.Cancel,
-		Response: sr.Response,
+		Close:            sr.Close,
+		Host:             sr.Host,
+		Form:             sr.Form,
+		PostForm:         sr.PostForm,
+		MultipartForm:    sr.MultipartForm,
+		Trailer:          sr.Trailer,
+		RemoteAddr:       sr.RemoteAddr,
+		RequestURI:       sr.RequestURI,
+		TLS:              sr.TLS,
+		Cancel:           sr.Cancel,
+		Response:         sr.Response,
 	}
 }
 
 func CopyResponseToQUIC(r http.Response) types.Response {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-	log.Println("Failed reading request body:", err)
+		log.Println("Failed reading request body:", err)
 	}
-	return types.Response {
-		Status: r.Status,
-		StatusCode: r.StatusCode,
-		Proto: r.Proto,
-		ProtoMajor: r.ProtoMajor,
-		ProtoMinor: r.ProtoMinor,
-		Header: r.Header,
-		Body: body,
-		ContentLength: r.ContentLength,
+	return types.Response{
+		Status:           r.Status,
+		StatusCode:       r.StatusCode,
+		Proto:            r.Proto,
+		ProtoMajor:       r.ProtoMajor,
+		ProtoMinor:       r.ProtoMinor,
+		Header:           r.Header,
+		Body:             body,
+		ContentLength:    r.ContentLength,
 		TransferEncoding: r.TransferEncoding,
-		Close: r.Close,
-		Uncompressed: r.Uncompressed,
-		Trailer: r.Trailer,
-		Request: r.Request,
-		TLS: r.TLS,
+		Close:            r.Close,
+		Uncompressed:     r.Uncompressed,
+		Trailer:          r.Trailer,
+		Request:          r.Request,
+		TLS:              r.TLS,
 	}
 }
 
 func NewResponseFromQUIC(sr types.Response) *http.Response {
 	body := ioutil.NopCloser(bytes.NewReader(sr.Body))
-	return &http.Response {
-		Status: sr.Status,
-		StatusCode: sr.StatusCode,
-		Proto: sr.Proto,
-		ProtoMajor: sr.ProtoMajor,
-		ProtoMinor: sr.ProtoMinor,
-		Header: sr.Header,
-		Body: body,
-		ContentLength: sr.ContentLength,
+	return &http.Response{
+		Status:           sr.Status,
+		StatusCode:       sr.StatusCode,
+		Proto:            sr.Proto,
+		ProtoMajor:       sr.ProtoMajor,
+		ProtoMinor:       sr.ProtoMinor,
+		Header:           sr.Header,
+		Body:             body,
+		ContentLength:    sr.ContentLength,
 		TransferEncoding: sr.TransferEncoding,
-		Close: sr.Close,
-		Uncompressed: sr.Uncompressed,
-		Trailer: sr.Trailer,
-		Request: sr.Request,
-		TLS: sr.TLS,
+		Close:            sr.Close,
+		Uncompressed:     sr.Uncompressed,
+		Trailer:          sr.Trailer,
+		Request:          sr.Request,
+		TLS:              sr.TLS,
 	}
 }
 

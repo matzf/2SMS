@@ -6,6 +6,6 @@ import (
 )
 
 type BootstrapData struct {
-	IA	addr.IA		`json:"ia,omitempty"`
-	RawSignature	common.RawBytes		`json:"raw_signature,omitempty"`
+	IA           addr.IA         `json:"ia,omitempty"`
+	RawSignature common.RawBytes `json:"raw_signature,omitempty"`
 }

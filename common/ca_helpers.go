@@ -1,23 +1,23 @@
 package common
 
 import (
-	"os"
-	"encoding/pem"
-	"crypto/x509/pkix"
 	"crypto/ecdsa"
-	"crypto/x509"
-	"crypto/rand"
-	"math/big"
-	"io/ioutil"
-	"strconv"
 	"crypto/elliptic"
-	"log"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/json"
+	"encoding/pem"
+	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
-	"net"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto"
-	"encoding/json"
-	"github.com/netsec-ethz/2SMS/common/types"
+	"io/ioutil"
+	"log"
+	"math/big"
+	"net"
+	"os"
+	"strconv"
 )
 
 // TODO: check type and handle errors
@@ -69,13 +69,13 @@ func ReadECPrivKeyFromPEMFile(fileName string) (*ecdsa.PrivateKey, error) {
 }
 
 // Create a csr for the given key
-func GenCertSignRequest(name pkix.Name, keys *ecdsa.PrivateKey, DNSNames []string, IPAddresses []net.IP) (csr []byte, err error){
+func GenCertSignRequest(name pkix.Name, keys *ecdsa.PrivateKey, DNSNames []string, IPAddresses []net.IP) (csr []byte, err error) {
 	// step: generate a csr template
 	var csrTemplate = x509.CertificateRequest{
 		Subject:            name,
 		SignatureAlgorithm: x509.ECDSAWithSHA512,
-		DNSNames: DNSNames,
-		IPAddresses: IPAddresses,
+		DNSNames:           DNSNames,
+		IPAddresses:        IPAddresses,
 	}
 	// step: generate the csr request
 	csrCertificate, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, keys)
@@ -163,7 +163,8 @@ func GenECDSAKey(typ string) (*ecdsa.PrivateKey, error) {
 	var priv *ecdsa.PrivateKey
 	// TODO: other cases + error
 	switch typ {
-	case "P256": priv, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case "P256":
+		priv, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	}
 
 	return priv, nil

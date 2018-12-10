@@ -1,26 +1,25 @@
 package common
 
 import (
-	"github.com/casbin/casbin"
-	"github.com/prometheus/client_model/go"
-	"time"
-	"github.com/scionproto/scion/go/lib/addr"
-	"strings"
-	"github.com/pkg/errors"
-	"log"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"sync"
-	"io/ioutil"
 	"encoding/json"
+	"github.com/casbin/casbin"
+	"github.com/netsec-ethz/2SMS/common/types"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_model/go"
+	"github.com/scionproto/scion/go/lib/addr"
+	"io/ioutil"
+	"log"
+	"strings"
+	"sync"
+	"time"
 )
 
 type AccessController struct {
-
-	enforcer *casbin.Enforcer
-	active bool
-	lastScrape map[string]time.Time
-	rwMutex sync.RWMutex
-	CoreASes []*addr.IA
+	enforcer        *casbin.Enforcer
+	active          bool
+	lastScrape      map[string]time.Time
+	rwMutex         sync.RWMutex
+	CoreASes        []*addr.IA
 	NeighboringASes []*addr.IA
 }
 
@@ -134,7 +133,7 @@ func (ac *AccessController) GetAllRoles() []string {
 	roles := []string{}
 	for _, subj := range ac.enforcer.GetAllSubjects() {
 		if strings.HasSuffix(subj, "_role") {
-			roles = append(roles, subj[:(len(subj) - 5)])
+			roles = append(roles, subj[:(len(subj)-5)])
 		}
 	}
 	return roles
@@ -159,7 +158,7 @@ func (ac *AccessController) GetRoles(source string) []string {
 	roles := ac.enforcer.GetRolesForUser(source)
 	roleNames := make([]string, len(roles))
 	for i, role := range roles {
-		roleNames[i] = role[:len(role) - 5]
+		roleNames[i] = role[:len(role)-5]
 	}
 	return roleNames
 }
@@ -168,7 +167,7 @@ func (ac *AccessController) GetRoleInfo(role string) *types.Role {
 	perms := ac.GetSubjectPermissions(role + "_role")
 	if len(perms) > 0 {
 		return &types.Role{
-			Name: role,
+			Name:        role,
 			Permissions: perms,
 		}
 	}
@@ -198,20 +197,20 @@ func (ac *AccessController) AddRole(source string, role string) error {
 		(strings.Contains(role, NeighborRole) && !ac.sourceInNeighborAS(source)) {
 		return errors.New(source + " is not allowed to have reserved role " + role)
 	}
-	ac.enforcer.AddRoleForUser(source, role + "_role")
+	ac.enforcer.AddRoleForUser(source, role+"_role")
 	ac.enforcer.SavePolicy()
 	return nil
 }
 
 func (ac *AccessController) RemoveRole(source string, role string) {
-	ac.enforcer.DeleteRoleForUser(source, role + "_role")
+	ac.enforcer.DeleteRoleForUser(source, role+"_role")
 	ac.enforcer.SavePolicy()
 }
 
 // Expects role to be just the role name and mapping to have e heading /
 func (ac *AccessController) AddRolePermissions(role string, mapping string, permissions []string) {
 	for _, perm := range permissions {
-		ac.enforcer.AddPermissionForUser(mapping[1:] + "_" + role + "_role", mapping, perm)
+		ac.enforcer.AddPermissionForUser(mapping[1:]+"_"+role+"_role", mapping, perm)
 	}
 	ac.enforcer.SavePolicy()
 }
@@ -294,7 +293,7 @@ func (ac *AccessController) AddTimingPermission(source, mapping, typ, duration s
 
 func (ac *AccessController) DeleteTimingPermission(source, mapping, typ string) {
 	for _, perm := range ac.GetPermissionsForObject(source, mapping) {
-		if strings.HasPrefix(perm, typ + ":") {
+		if strings.HasPrefix(perm, typ+":") {
 			ac.enforcer.DeletePermissionForUser(source, mapping, perm)
 			ac.enforcer.SavePolicy()
 			break

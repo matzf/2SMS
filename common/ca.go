@@ -4,37 +4,37 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
-	"math/big"
 	"crypto/x509/pkix"
-	"time"
+	"math/big"
 	"net"
+	"time"
 )
 
 // Main source: https://fale.io/blog/2017/06/05/create-a-pki-in-golang/
 
 // TODO: move to types
 type Duration struct {
-	Years 	int
-	Months 	int
-	Days	int
+	Years  int
+	Months int
+	Days   int
 }
 
 // TODO: move to types
 type CA struct {
-	Serial 		*big.Int
+	Serial      *big.Int
 	PrivKeyFile string
-	SerialFile	string
-	CertFile	string
-	privKey		*ecdsa.PrivateKey
-	cert		*x509.Certificate
+	SerialFile  string
+	CertFile    string
+	privKey     *ecdsa.PrivateKey
+	cert        *x509.Certificate
 }
 
 // Generate a self-signed certificate for `priv` key
 // TODO: adjust data in cert, error handling
 func (ca *CA) genCACert(duration *Duration, name *pkix.Name) (cert []byte, err error) {
 	ca_a := &x509.Certificate{
-		SerialNumber: ca.Serial,
-		Subject: *name,
+		SerialNumber:          ca.Serial,
+		Subject:               *name,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(duration.Years, duration.Months, duration.Days),
 		IsCA:                  true,
@@ -55,15 +55,15 @@ func (ca *CA) GenCertFromCSR(csr *x509.CertificateRequest, duration *Duration) (
 	// TODO: verify csr
 	cert_a := &x509.Certificate{
 		SerialNumber: ca.Serial,
-		Subject: csr.Subject,
-		PublicKey: csr.PublicKey,
+		Subject:      csr.Subject,
+		PublicKey:    csr.PublicKey,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(duration.Years, duration.Months, duration.Days),
 		//SubjectKeyId: []byte{1, 2, 3, 4, 6}, // TODO: what's this for??
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		DNSNames:       csr.DNSNames,
-		IPAddresses:	csr.IPAddresses,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		DNSNames:    csr.DNSNames,
+		IPAddresses: csr.IPAddresses,
 	}
 	// Sign the certificate
 	cert, err = x509.CreateCertificate(rand.Reader, cert_a, ca.cert, csr.PublicKey, ca.privKey)
@@ -76,17 +76,17 @@ func (ca *CA) GenCertFromCSR(csr *x509.CertificateRequest, duration *Duration) (
 }
 
 // TODO: add also IPAddresses argument
-func (ca *CA) GenCert(name pkix.Name, keys *ecdsa.PrivateKey, duration *Duration, DNSNames []string, IPAddresses []net.IP) (cert []byte, err error){
+func (ca *CA) GenCert(name pkix.Name, keys *ecdsa.PrivateKey, duration *Duration, DNSNames []string, IPAddresses []net.IP) (cert []byte, err error) {
 	cert_a := &x509.Certificate{
 		SerialNumber: ca.Serial,
-		Subject: name,
+		Subject:      name,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(duration.Years, duration.Months, duration.Days),
 		//SubjectKeyId: []byte{1, 2, 3, 4, 6}, // TODO: what's this for??
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		DNSNames:       DNSNames,
-		IPAddresses:	IPAddresses,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		DNSNames:    DNSNames,
+		IPAddresses: IPAddresses,
 	}
 	// Sign the certificate
 	cert, err = x509.CreateCertificate(rand.Reader, cert_a, ca.cert, &keys.PublicKey, ca.privKey)

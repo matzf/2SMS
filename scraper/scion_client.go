@@ -1,20 +1,20 @@
 package main
 
 import (
-	"github.com/scionproto/scion/go/lib/snet"
-	"net/http"
-	"strings"
+	"encoding/gob"
+	"errors"
+	"github.com/juagargi/temp_squic" // TODO: remove and import from scionproto
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
 	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common/types"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"log"
-	"time"
-	"github.com/juagargi/temp_squic" // TODO: remove and import from scionproto
-	"errors"
-	"github.com/lucas-clemente/quic-go"
-	"encoding/gob"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/lucas-clemente/quic-go/qerr"
 	"net"
+	"net/http"
+	"strings"
+	"time"
 )
 
 type SCIONClient struct {
@@ -56,7 +56,7 @@ func (sc *SCIONClient) TunnelRequest(req *http.Request) (*http.Response, error) 
 					Send(qstream, req)
 					resp := Read(qstream)
 					after := time.Now()
-					log.Println("Reading response", resp,"at:", after, ". Took:", after.Sub(before))
+					log.Println("Reading response", resp, "at:", after, ". Took:", after.Sub(before))
 					return resp, nil
 				}
 				return &http.Response{}, err
