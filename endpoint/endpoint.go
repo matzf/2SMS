@@ -390,69 +390,29 @@ type handler struct {
 
 // Redirects to the right port on localhost based on request path and configured mapping
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	log.Println("HTTPS request accepted from:", req.RemoteAddr)
 	// Get path from request
 	path := req.URL.Path
 	// Get internal port from mapping
 	resp, err := LocalhostGet(path, h.client)
 	if err != nil {
-		w.WriteHeader(500)
+		log.Printf("Failed: HTTPS request from %s to %s%s. Error is: %v", req.RemoteAddr, req.Host, req.URL, err)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	// Copy back response
 	io.Copy(w, resp.Body)
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("serveHTTP: could not close response's body after copying it for redirection. Error is: %v", err)
+	}
 	for k, vv := range resp.Header {
 		for _, v := range vv {
 			w.Header().Add(k, v)
 		}
 	}
+	log.Printf("Succeeded: HTTPS request from %s to %s%s", req.RemoteAddr, req.Host, req.URL)
 }
 
-//// TEST PURPOSE ONLY
-//func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-//	log.Println("HTTPS request accepted from:", req.RemoteAddr)
-//	// Get path from request
-//	path := req.URL.Path
-//
-//	// TODO: check if path exists before authenticating
-//
-//	// TEST PURPOSE ONLY
-//	source := "17-ffaa:1:43:" + strings.Split(req.RemoteAddr, ":")[0]
-//	if err := accessController.Authorized(source, path); err != nil {
-//		log.Println(err)
-//		w.WriteHeader(401)
-//		return
-//	}
-//	// TEST PURPOSE ONLY
-//
-//	resp, err := LocalhostGet(path, h.client)
-//	if err != nil {
-//		w.WriteHeader(500)
-//		return
-//	}
-//
-//	// TEST PURPOSE ONLY
-//	// Read response and parse body to []MetricFamily
-//	metrics := DecodeResponseBody(resp)
-//	// Filter metrics according to authorization policy
-//	filteredMetrics := accessController.FilterMetrics(source, path, metrics)
-//	// Create new response body with filtered metrics
-//	byts, err := EncodeMetrics(filteredMetrics, expfmt.Negotiate(req.Header))
-//	if err != nil {
-//		log.Println("Error while encoding metrics:", err)
-//		return
-//	}
-//	resp.Body = ioutil.NopCloser(bytes.NewReader(byts))
-//	// TEST PURPOSE ONLY
-//
-//	// Copy back response
-//	io.Copy(w, resp.Body)
-//	for k, vv := range resp.Header {
-//		for _, v := range vv {
-//			w.Header().Add(k, v)
-//		}
-//	}
-//}
 
 func LocalhostGet(path string, client http.Client) (*http.Response, error) {
 	// Make HTTP GET request to mapped target on localhost

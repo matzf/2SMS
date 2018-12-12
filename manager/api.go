@@ -175,6 +175,7 @@ func addTargetToScraper(byts []byte, scraper *types.Scraper) {
 	resp, err := httpsClient.Post("https://"+scraper.IP+":"+scraper.ManagePort+"/targets", "application/json", bytes.NewReader(byts))
 	if err != nil {
 		log.Println("Error in adding scraper target:", err)
+		return
 	}
 	err = resp.Body.Close()
 	if err != nil {
@@ -191,6 +192,7 @@ func notifyRemovedMapping(w http.ResponseWriter, r *http.Request) {
 		resp, err := httpsClient.Do(req)
 		if err != nil {
 			log.Println("Error in removing scraper target:", err)
+			continue
 		}
 		io.Copy(w, resp.Body)
 		err = resp.Body.Close()
@@ -309,6 +311,7 @@ func removeEndpoint(w http.ResponseWriter, r *http.Request) {
 			resp, err = httpsClient.Do(req)
 			if err != nil {
 				log.Println("Error in removing scraper target:", err)
+				continue
 			}
 			err = resp.Body.Close()
 			if err != nil {

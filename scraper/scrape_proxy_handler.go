@@ -49,8 +49,12 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			err = errors.New("Unsupported method: " + r.Method)
 		}
 		if err != nil {
-			log.Println("Failed processing HTTPS request:", err)
-			w.WriteHeader(400)
+			log.Printf("Failed: HTTPS request to %s%s. Error is: %v", host, r.URL.Path, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else if resp.StatusCode == http.StatusNotFound {
+			log.Printf("Failed: HTTPS request to %s%s. Path was not found (404).", host, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 	}
@@ -70,7 +74,4 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Print proxy traffic infos
-	//log.Printf("%v\n", resp.Status)
-	//log.Println(string(body))
 }
