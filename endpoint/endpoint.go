@@ -41,12 +41,14 @@ var (
 	reloadMappingsMutex = &sync.Mutex{}
 	internalMapping     types.EndpointMappings
 	endpointIP          string
+	endpointPublicBind	string
 	endpointDNS         string
 	caCertsDir          string
 	externalPort        string
 	endpointCert        string
 	endpointPrivKey     string
 	endpointCSR         string
+	endpointLocalTarget	string
 	nodeExporterEnabled string
 	managementAPIPort   string
 	managerIP           string
@@ -72,11 +74,11 @@ var (
 
 func initialize_endpoint() {
 	flag.StringVar(&nodeExec, "node.exec", "node-exporter/node_exporter", "path to node exporter executable")
-	flag.StringVar(&nodeListenAddress, "node.liste-address", "127.0.0.1:9100", "address where node exporter listens")
+	flag.StringVar(&nodeListenAddress, "node.listen-address", "localhost:9100", "address where node exporter listens")
 	flag.StringVar(&nodePath, "node.path", "/metrics", "path where node exporter's metrics are showed")
 	flag.StringVar(&nodeOutFile, "node.out", "node-exporter/out", "file where node exporter output is redirected")
 	flag.StringVar(&endpointDNS, "endpoint.DNS", "localhost", "DNS name of endpoint machine")
-	flag.StringVar(&endpointIP, "endpoint.IP", "127.0.0.1", "IP of endpoint machine")
+	flag.StringVar(&endpointPublicBind, "endpoint.external.bind", "0.0.0.0", "IP that the scrape proxy will bind to")
 	flag.StringVar(&externalPort, "endpoint.external.port", "9200", "externally exposed port for scraping")
 	flag.StringVar(&authorizationPort, "endpoint.authorization.port", "9500", "externally exposed port for access control calls")
 	flag.StringVar(&endpointCert, "endpoint.cert", "auth/endpoint.crt", "full chain endpoint's certificate file")
@@ -85,6 +87,7 @@ func initialize_endpoint() {
 	flag.StringVar(&nodeExporterEnabled, "endpoint.enable-node", "false", "set to true to enable node_exporter and false otherwise")
 	flag.StringVar(&managementAPIPort, "endpoint.ports.management", "9900", "port where the management API is exposed")
 	flag.StringVar(&localhostManagementPort, "endpoint.ports.local", "9999", "port where the local management API is exposed")
+	flag.StringVar(&endpointLocalTarget, "endpoint.local.target", "localhost", "Internal IP address where SCION services expose their Prometheus metrics")
 
 	flag.StringVar(&initRolesFile, "endpoint.roles_file", "init_roles.json", "contains role definitions that are loaded at startup and added to the authorization policy")
 	flag.StringVar(&authModelFile, "endpoint.model", "auth/model.conf", "location of the model file defining authorization schema model")
@@ -118,6 +121,8 @@ func initialize_endpoint() {
 
 	// Initialize scion network
 	common.InitNetwork(local, sciond, dispatcher)
+
+	endpointIP = local.Host.IP().String()
 
 	// Bootstrap PKI
 	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json")
@@ -227,7 +232,7 @@ func main() {
 	go func() {
 		log.Println("Starting HTTPS server")
 
-		srv := common.CreateHttpsServer(caCertsDir, endpointIP, externalPort, &handler{http.Client{}}, tls.RequireAndVerifyClientCert)
+		srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, externalPort, &handler{http.Client{}}, tls.RequireAndVerifyClientCert)
 
 		log.Fatal("HTTPS server listening error: ", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 	}()
@@ -268,7 +273,7 @@ func main() {
 		router.HandleFunc("/{mapping}/metrics/list", listMetrics).Methods("GET")
 		//router.HandleFunc("/metrics/authorization", requestPermissions).Methods("POST") // TODO
 
-		srv := common.CreateHttpsServer(caCertsDir, endpointIP, authorizationPort, router, tls.NoClientCert)
+		srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, authorizationPort, router, tls.NoClientCert)
 		log.Println("Starting server without client verification")
 		log.Fatal("Server without client verification listening error:", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 	}()
@@ -307,13 +312,13 @@ func main() {
 
 	go func() {
 		srv := &http.Server{
-			Addr:    "127.0.0.1:" + localhostManagementPort,
+			Addr:    "localhost:" + localhostManagementPort,
 			Handler: router,
 		}
 		log.Println("localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()
 
-	srv := common.CreateHttpsServer(caCertsDir, endpointIP, managementAPIPort, router, tls.RequireAndVerifyClientCert)
+	srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, managementAPIPort, router, tls.RequireAndVerifyClientCert)
 	log.Println("Starting HTTPS management server")
 	log.Fatal("HTTPS server listening error: ", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 }
@@ -356,10 +361,10 @@ func handleQUICSession(qsess quic.Session, client http.Client) {
 		log.Println("Remote ", source, "not authorized to scrape endpoint")
 		return
 	}
-	// Make HTTP GET request to mapped target on localhost
+	// Make HTTP GET request to mapped target
 	resp, err := LocalhostGet(path, client)
 	if err != nil {
-		log.Println("Failed contacting 127.0.0.1:", err)
+		log.Println("Failed contacting local target:", err)
 		return
 	}
 
@@ -419,13 +424,13 @@ func LocalhostGet(path string, client http.Client) (*http.Response, error) {
 	reloadMappingsMutex.Lock()
 	internalPort := internalMapping[path]
 	reloadMappingsMutex.Unlock()
-	resp, err := client.Get("http://127.0.0.1:" + internalPort + "/metrics")
+	resp, err := client.Get("http://" + endpointLocalTarget + ":" + internalPort + "/metrics")
 	if err != nil {
 		log.Println("Error while contacting local target: ", err)
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://127.0.0.1:"+internalPort+path)
+		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://" + endpointLocalTarget + ":" +internalPort+path)
 		return nil, err
 	}
 	return resp, nil

@@ -82,7 +82,7 @@ cd ../scraper
 
 echo 'Starting endpoint application'
 cd ../endpoint
-./endpoint -local "$IA",[$IP]:9199  -endpoint.IP $IP -endpoint.enable-node true -manager.IP $IP  -endpoint.ports.local 9998 -endpoint.ports.management 9905 > ../endpoint.out 2>&1 &
+./endpoint -local "$IA",[$IP]:9199  -endpoint.enable-node true -manager.IP $IP  -endpoint.ports.local 9998 -endpoint.ports.management 9905 > ../endpoint.out 2>&1 &
 sleep 1
 ps 
 echo "All started"

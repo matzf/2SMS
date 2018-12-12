@@ -3,28 +3,4 @@ global:
   scrape_timeout: 10s
   evaluation_interval: 15s
 alerting:
-  alertmanagers:
-  - static_configs:
-    - targets: []
-    scheme: http
-    timeout: 10s
 scrape_configs:
-- job_name: 17-ffaa:1:43 127.0.0.5 node
-  scrape_interval: 10s
-  scrape_timeout: 10s
-  metrics_path: /17-ffaa:1:43/node
-  scheme: http
-  static_configs:
-  - targets:
-    - 127.0.0.5:9199
-    labels:
-      AS: ffaa:1:43
-      ISD: "17"
-      service: node
-  proxy_url: http://127.0.0.1:9901
-remote_write:
-- url: http://127.0.0.3:8185/17-ffaa:1:43/write
-  proxy_url: http://127.0.0.1:9902
-remote_read:
-- url: http://127.0.0.3:8185/17-ffaa:1:43/read
-  proxy_url: http://127.0.0.1:9902

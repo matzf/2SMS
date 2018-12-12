@@ -42,7 +42,7 @@ rm -f $SERVICE_FILE_NAME
 wget https://raw.githubusercontent.com/netsec-ethz/2SMS/master/endpoint/2SMSendpoint.service -O $SERVICE_FILE_NAME
 
 # Modify service file with correct SCION address and IP parameters
-sed -i -r "s/_USER_/$USER/g;s/_MANAGER_IP_/$MANAGER_IP/g;s/^(.+)_IA_,\[_IP_\]:9199 -endpoint\.IP _IP_(.+)$/\1$IA,[$IP]:9199 -endpoint.IP $IP\2/g" $SERVICE_FILE_NAME
+sed -i -r "s/_USER_/$USER/g;s/_MANAGER_IP_/$MANAGER_IP/g;s/^(.+)_IA_,\[_IP_\]:9199 (.+)$/\1$IA,[$IP]:9199 \2/g" $SERVICE_FILE_NAME
 
 # Move service file to the right place
 sudo mv $SERVICE_FILE_NAME /etc/systemd/system/
