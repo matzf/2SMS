@@ -135,7 +135,7 @@ func initManager() {
 	}
 
 	// Bootstrap PKI
-	err = common.Bootstrap(caCertFile, "ca/bootstrap.json", local.IA) // TODO: use param for caData
+	err = common.Bootstrap(caCertFile, "ca/bootstrap.json") // TODO: use param for caData
 	if err != nil {
 		log.Fatal("Verification of ca certificate failed:", err)
 	} else {

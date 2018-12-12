@@ -6,19 +6,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"time"
-
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"time"
 )
 
 func getSigningKey(IA addr.IA) []byte {
@@ -26,11 +24,10 @@ func getSigningKey(IA addr.IA) []byte {
 	if err != nil {
 		log.Fatalf("Internal error building regular expression \"%s\": %v", asCertFileNameRegex.String(), err)
 	}
-	scionDir := os.Getenv("SC")
-	certsDir := scionDir + fmt.Sprintf("/gen/ISD%d/AS%s/endhost/certs/", IA.I, IA.A.FileFmt())
+	certsDir := "ca_certs"
 	fileInfos, err := ioutil.ReadDir(certsDir)
 	if err != nil {
-		log.Fatalf("Could not read endhost certs directory %s. Error is: %v", certsDir, err)
+		log.Fatalf("Could not read ca_certs certs directory %s. Error is: %v", certsDir, err)
 	}
 	// since there could be any number of valid AS certificate files, we take the last version
 	// for that, we sort the files like "ISD17-ASffaa_1_a-V1.crt" and pick the last one
@@ -55,7 +52,7 @@ func getSigningKey(IA addr.IA) []byte {
 }
 
 // Bootstrap boots the PKI validating the passed CA
-func Bootstrap(rootCertFile, bootstrapDataFile string, localIA addr.IA) error {
+func Bootstrap(rootCertFile, bootstrapDataFile string) error {
 	// Parse caData, which contains the manager's IA and raw certificate signature (sig) in json format
 	jsonBytes, err := ioutil.ReadFile(bootstrapDataFile)
 	if err != nil {
@@ -66,14 +63,18 @@ func Bootstrap(rootCertFile, bootstrapDataFile string, localIA addr.IA) error {
 	if err != nil {
 		return err
 	}
-	verifyKey := getSigningKey(localIA)
+	verifyKey := getSigningKey(bootstrapData.IA)
 	// Load raw ca certificate
 	sigInput, err := ioutil.ReadFile(rootCertFile)
 	if err != nil {
 		return err
 	}
 	// Verify the signature
-	return crypto.Verify(sigInput, bootstrapData.RawSignature, verifyKey, "ed25519")
+	err = crypto.Verify(sigInput, bootstrapData.RawSignature, verifyKey, "ed25519")
+	if err != nil {
+		log.Printf("Failed verifying %v with key %v from %v against signature %v", sigInput, bootstrapData.RawSignature, bootstrapData.IA, verifyKey)
+	}
+	return err
 }
 
 func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csrFile string, typ, ip string) {

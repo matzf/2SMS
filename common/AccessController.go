@@ -35,8 +35,8 @@ func NewAccessController(modelFile, policyFile string, active bool, ia *addr.IA)
 		active,
 		make(map[string]time.Time),
 		sync.RWMutex{},
-		GetCoreASes(*ia),
-		GetNeighboringASes(*ia),
+		make([]*addr.IA, 0), // TODO (issue #38): replace with `GetCoreASes(*ia),`
+		make([]*addr.IA, 0), // TODO (issue #38): replace with `GetNeighboringASes(*ia),`
 	}
 }
 

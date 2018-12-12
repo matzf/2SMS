@@ -95,7 +95,7 @@ func init() {
 	common.InitNetwork(local, sciond, dispatcher)
 
 	// Bootstrap PKI
-	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json", local.IA)
+	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json")
 	if err != nil {
 		log.Fatal("Verification of ca certificate failed:", err)
 	} else {

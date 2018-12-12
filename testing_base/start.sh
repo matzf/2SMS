@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 BASEDIR=$(dirname $(realpath $0))
 cd "$BASEDIR/.."
 
@@ -31,15 +33,23 @@ IP=127.0.0.1
 [ -x ./testing_base/stop.sh ] && { echo 'Stopping previous runs'; ./testing_base/stop.sh; }
 
 echo 'Copying executables'
+mkdir -p $BASEDIR/manager/ca_certs
+ASCERT=$(ls $SC/gen/ISD*/AS*/endhost/certs/ISD*AS*.crt)
+cp $ASCERT $BASEDIR/manager/ca_certs/
+mkdir -p $BASEDIR/scraper/ca_certs
+cp $ASCERT $BASEDIR/scraper/ca_certs/
+mkdir -p $BASEDIR/endpoint/ca_certs
+cp $ASCERT $BASEDIR/endpoint/ca_certs/
+
 cp $MANAGER $BASEDIR/manager/manager
 # scraper
-cp $SCRAPER $BASEDIR/scraper/scraper
 mkdir -p $BASEDIR/scraper/prometheus
+cp $SCRAPER $BASEDIR/scraper/scraper
 cp $(dirname $SCRAPER)/prometheus/prometheus $BASEDIR/scraper/prometheus/
 touch $BASEDIR/scraper/prometheus/prometheus.yml
 # endpoint
-cp $ENDPOINT $BASEDIR/endpoint/endpoint
 mkdir -p $BASEDIR/endpoint/auth
+cp $ENDPOINT $BASEDIR/endpoint/endpoint
 cp $(dirname $ENDPOINT)/auth/model.conf $BASEDIR/endpoint/auth
 mkdir -p $BASEDIR/endpoint/node-exporter
 cp $(dirname $ENDPOINT)/node-exporter/node_exporter $BASEDIR/endpoint/node-exporter/

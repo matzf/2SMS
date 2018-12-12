@@ -22,9 +22,19 @@ cd $INSTALLATION_PATH
 # Download binary file
 echo "Downloading binary"
 rm -f endpoint
-wget https://gist.github.com/baehless/0af8c4fca2db16737a6e31b7e725ad98/raw/d40277423a542979b2f83ffd5638c9e8392eaf6a/endpoint -O endpoint
+git clone https://gist.github.com/baehless/0af8c4fca2db16737a6e31b7e725ad98
+mv 0af8c4fca2db16737a6e31b7e725ad98/endpoint .
+rm -rf 0af8c4fca2db16737a6e31b7e725ad98
+
 # Make executable
 chmod +x endpoint
+
+wget https://gist.github.com/juagargi/376323076d37bf319ec29eb2b0a071f4/raw/3fb9efbb630d8d28b9f880d33024e5b0eb05e004/endpoint-deployment.tgz -O endpoint-deployment.tgz
+tar xf endpoint-deployment.tgz
+if [ ! -f ca_certs/bootstrap.json ] || [ ! -f ca_certs/ca.crt ] || [ ! -f ca_certs/ISD*AS*.crt ] || [ ! -f auth/model.conf ]; then
+    echo "ca_certs/ or auth/ files missing after unpacking endpoint-deployment.tgz from our gist"
+    exit 1
+fi
 
 # Download service file
 echo "Downloading service file"
@@ -55,10 +65,13 @@ else
 fi
 
 # Start service
-echo "Starting $SERVICE_FILE_NAME"
+echo "Stopping $SERVICE_FILE_NAME"
 sudo systemctl stop $SERVICE_FILE_NAME || true
+echo "Reloading Daemons"
 sudo systemctl daemon-reload
+echo "Starting $SERVICE_FILE_NAME"
 sudo systemctl start $SERVICE_FILE_NAME
+echo "Enabling $SERVICE_FILE_NAME at boot time"
 sudo systemctl enable $SERVICE_FILE_NAME || true # at boot time
 
 # Check service status
