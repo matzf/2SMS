@@ -12,7 +12,7 @@ TimeoutStartSec=30
 # -- Modify accordingly if needed: socket path --
 ExecStartPre=/bin/bash -c 'while [ ! -S /run/shm/sciond/default.sock ]; do /bin/sleep 1; done'
 # -- Modify accordingly if needed: executable path and addresses --
-ExecStart=/home/_USER_/2SMS/deployment/endpoint/endpoint -local _IA_,[_IP_]:9199 -endpoint.IP _IP_ -endpoint.enable-node true -manager.IP _MANAGER_IP_
+ExecStart=/home/_USER_/2SMS/deployment/endpoint/endpoint -local _IA_,[_IP_]:9199 -endpoint.enable-node true -manager.IP _MANAGER_IP_
 Restart=on-failure
 User=_USER_
 
