@@ -41,12 +41,15 @@ cp $ASCERT $BASEDIR/scraper/ca_certs/
 mkdir -p $BASEDIR/endpoint/ca_certs
 cp $ASCERT $BASEDIR/endpoint/ca_certs/
 
+# manager
 cp $MANAGER $BASEDIR/manager/manager
+
 # scraper
 mkdir -p $BASEDIR/scraper/prometheus
 cp $SCRAPER $BASEDIR/scraper/scraper
 cp $(dirname $SCRAPER)/prometheus/prometheus $BASEDIR/scraper/prometheus/
 touch $BASEDIR/scraper/prometheus/prometheus.yml
+
 # endpoint
 mkdir -p $BASEDIR/endpoint/auth
 cp $ENDPOINT $BASEDIR/endpoint/endpoint
@@ -80,8 +83,11 @@ echo 'Starting scraper application'
 cd ../scraper
 ./scraper -local "$IA",[$IP]:0 -scraper.IP $IP -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP $IP -manager.unverif-port 10000 -manager.verif-port 10001 > ../scraper.out 2>&1 &
 
-echo 'Starting endpoint application'
+echo 'Creating endpoint mappings file'
 cd ../endpoint
+$BASEDIR/../deployment/create_endpoint_mappings.sh
+
+echo 'Starting endpoint application'
 ./endpoint -local "$IA",[$IP]:9199  -endpoint.enable-node true -manager.IP $IP  -endpoint.ports.local 9998 -endpoint.ports.management 9905 > ../endpoint.out 2>&1 &
 sleep 1
 ps 

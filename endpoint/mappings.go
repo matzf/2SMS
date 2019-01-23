@@ -13,17 +13,6 @@ import (
 	"github.com/netsec-ethz/2SMS/common/types"
 )
 
-func InitInternalMappings(nodeListenPort, genFolder string) types.EndpointMappings {
-	mappings := types.EndpointMappings{}
-	if nodeListenPort != "" {
-		mappings["/node"] = nodeListenPort
-	}
-	if genFolder != "" {
-		// TODO: Load mapping for SCION service from gen folder
-	}
-	return mappings
-}
-
 func LoadMappings() (types.EndpointMappings, error) {
 	dat, err := ioutil.ReadFile("mappings.json")
 	if err != nil {

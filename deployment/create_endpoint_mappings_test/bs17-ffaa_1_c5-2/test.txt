@@ -1,0 +1,1 @@
+correctly configured service without 'prom' parameter in supervisord.conf file

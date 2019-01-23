@@ -1,0 +1,15 @@
+Looking for mappings in 'create_endpoint_mappings_test/'
+Added {"Path":"/br-1","Port":"32042"}
+Added {"Path":"/br-2","Port":"32047"}
+Added {"Path":"/br-33","Port":"32088"}
+Added {"Path":"/bs-1","Port":"32041"}
+No 'prom' argument found in 'create_endpoint_mappings_test/bs17-ffaa_1_c5-2/supervisord.conf'
+Skipping certificate server ('create_endpoint_mappings_test/cs17-ffaa_1_c5-1') because it doesn't yet expose metrics.
+'create_endpoint_mappings_test/css17-ffaa_1_c5-1' is not of interest for creating mappings
+'create_endpoint_mappings_test/endhost' is not of interest for creating mappings
+'create_endpoint_mappings_test/mappings.json.expected' is not of interest for creating mappings
+'create_endpoint_mappings_test/output.txt.expected' is not of interest for creating mappings
+Skipping path server ('create_endpoint_mappings_test/ps17-ffaa_1_c5-1') because it doesn't yet expose metrics.
+'create_endpoint_mappings_test/zk17-ffaa_1_c5-1' is not of interest for creating mappings
+Writing mappings to file
+Finished writing to 'mappings.json'

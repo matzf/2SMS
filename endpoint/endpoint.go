@@ -28,7 +28,6 @@ import (
 	"crypto/x509/pkix"
 	"io/ioutil"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/netsec-ethz/2SMS/common/types"
@@ -158,12 +157,7 @@ func initialize_endpoint() {
 	}
 	// Init mappings
 	if !common.FileExists("mappings.json") {
-		var nodeListenPort string
-		if enabled, err := strconv.ParseBool(nodeExporterEnabled); err == nil && enabled {
-			nodeListenPort = strings.Split(nodeListenAddress, ":")[1]
-		}
-		mappings := InitInternalMappings(nodeListenPort, genFolder)
-		SaveMappings(mappings)
+		log.Fatal("Mappings mappings.json file not found in endpoint directory. \nMake sure to create such file with a list of types.Mapping objects in json format.")
 	}
 
 	// Load mapping from file

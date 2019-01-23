@@ -1,0 +1,1 @@
+correctly configured br service with higher instance number (double digit)

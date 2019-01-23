@@ -71,6 +71,10 @@ else
     echo "SCION correctly installed"
 fi
 
+# Create mappings file
+# TODO: make sure the script is downloaded
+./create_endpoint_mappings.sh
+
 # Start service
 echo "Stopping $SERVICE_FILE_NAME"
 sudo systemctl stop $SERVICE_FILE_NAME || true

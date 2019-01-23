@@ -1,0 +1,1 @@
+correctly configured ps service (TODO: still no prometheus configuration provided)

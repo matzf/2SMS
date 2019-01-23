@@ -1,0 +1,26 @@
+[general]
+ID = "cs17-ffaa_1_c5-1"
+ConfigDir = "gen/ISD17/ASffaa_1_c5/cs17-ffaa_1_c5-1"
+
+[sd_client]
+Path = "/run/shm/sciond/default.sock"
+
+[cs]
+ReissueTimeout = "5s"
+ReissueRate = "10s"
+LeafReissueTime = "6h"
+IssuerReissueTime = "3d"
+
+[infra]
+Type = "CS"
+
+[TrustDB]
+Backend = "sqlite"
+Connection = "gen-cache/cs17-ffaa_1_c5-1.trust.db"
+
+[logging.console]
+Level = "crit"
+
+[logging.file]
+Level = "debug"
+Path = "logs/cs17-ffaa_1_c5-1.log"
