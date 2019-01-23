@@ -7,7 +7,7 @@ if [ $# -gt 1 ]; then
     echo "$0 services_dir"
     exit 1
 elif [ $# -eq 1 ]; then
-    services_dir="$1/"
+    services_dir="$1"
 else
     services_dir=$(find $SC/gen -type d -regex ".*/ISD.*/AS.*" | head -n 1)
 fi
@@ -24,7 +24,7 @@ echo "Looking for mappings in '$services_dir'"
 declare -a mappings
 mappings+='{"Path":"/node","Port":"9100"}'
 for s in $services; do
-    service_dir="$services_dir$s"
+    service_dir="$services_dir/$s"
     if [ -d $service_dir ] && { [[ $s =~ ^br[0-9]+.*$ ]] || [[ $s =~ ^ps[0-9]+.*$ ]] || [[ $s =~ ^bs[0-9]+.*$ ]] || [[ $s =~ ^cs[0-9]+.*$ ]]; }; then
         # TODO: changes to cs and ps parsing (will be in a .toml file instead of the supervisord.conf)
         # Don't add cs and ps instances until they expose metrics

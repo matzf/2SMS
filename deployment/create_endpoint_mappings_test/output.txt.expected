@@ -1,4 +1,4 @@
-Looking for mappings in 'create_endpoint_mappings_test/'
+Looking for mappings in 'create_endpoint_mappings_test'
 Added {"Path":"/br-1","Port":"32042"}
 Added {"Path":"/br-2","Port":"32047"}
 Added {"Path":"/br-33","Port":"32088"}
