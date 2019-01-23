@@ -83,6 +83,8 @@ echo 'Starting scraper application'
 cd ../scraper
 ./scraper -local "$IA",[$IP]:0 -scraper.IP $IP -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP $IP -manager.unverif-port 10000 -manager.verif-port 10001 > ../scraper.out 2>&1 &
 
+sleep 1
+
 echo 'Creating endpoint mappings file'
 cd ../endpoint
 $BASEDIR/../deployment/create_endpoint_mappings.sh

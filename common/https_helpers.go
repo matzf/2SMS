@@ -29,9 +29,9 @@ func NewCertPoolFromDir(dirPath string) (*x509.CertPool, error) {
 	return newCertPool, nil
 }
 
-func CreateHttpsClient(serverCertsDir, clientCert, clientPrivKey string) *http.Client {
+func CreateHttpsClient(caCertDir, clientCert, clientPrivKey string) *http.Client {
 	// Load server certificates
-	serverCertPool, err := NewCertPoolFromDir(serverCertsDir)
+	serverCertPool, err := NewCertPoolFromDir(caCertDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,17 +55,23 @@ func CreateHttpsClient(serverCertsDir, clientCert, clientPrivKey string) *http.C
 	return client
 }
 
-func CreateHttpsServer(clientCertsDir, listenInterface, listenPort string, handler http.Handler, clientAuth tls.ClientAuthType) *http.Server {
+func CreateHttpsServer(clientCACertsDir, serverCert, serverPrivKey, listenInterface, listenPort string, handler http.Handler, clientAuth tls.ClientAuthType) *http.Server {
 	// Load client certificates
-	clientCertPool, err := NewCertPoolFromDir(clientCertsDir)
+	clientCAs, err := NewCertPoolFromDir(clientCACertsDir)
 	if err != nil {
 		log.Println("Unable to create client certificate pool: ", err)
 		return nil
 	}
+	// Load server cert and key
+	cert, err := tls.LoadX509KeyPair(serverCert, serverPrivKey)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Require scraper certificate verification
 	cfg := &tls.Config{
-		ClientAuth: clientAuth,
-		ClientCAs:  clientCertPool,
+		ClientAuth:   clientAuth,
+		ClientCAs:    clientCAs,
+		Certificates: []tls.Certificate{cert},
 	}
 	// Run HTTPS server
 	srv := &http.Server{

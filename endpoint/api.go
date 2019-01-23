@@ -144,7 +144,7 @@ func listMetrics(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		return
 	}
-	metricsInfo := GetMetricsInfoForMapping(mapping, http.Client{})
+	metricsInfo := GetMetricsInfoForMapping(mapping, localHTTPClient)
 	// Marshal to json and write in response
 	jsonMetricsInfo, err := json.Marshal(metricsInfo)
 	if err != nil {

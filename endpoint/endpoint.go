@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/gob"
 	"flag"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"io"
 	"log"
 	"net/http"
@@ -18,36 +19,28 @@ import (
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 
-	"github.com/lucas-clemente/quic-go"
-	//"github.com/scionproto/scion/go/lib/snet/squic" // TODO: change to this (gives type problems)
-	"github.com/juagargi/temp_squic"
-
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"io/ioutil"
 	"net"
 	"sync"
 
 	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/prometheus/common/expfmt"
 )
 
 var (
-	authorizationPort   string
 	nodeOutFile         string
 	reloadMappingsMutex = &sync.Mutex{}
 	internalMapping     types.EndpointMappings
 	endpointIP          string
-	endpointPublicBind	string
+	endpointPublicBind  string
 	endpointDNS         string
 	caCertsDir          string
 	externalPort        string
 	endpointCert        string
 	endpointPrivKey     string
 	endpointCSR         string
-	endpointLocalTarget	string
+	endpointLocalTarget string
 	nodeExporterEnabled string
 	managementAPIPort   string
 	managerIP           string
@@ -66,6 +59,7 @@ var (
 	doAccessControl         bool
 	accessController        *common.AccessController
 	httpsClient             *http.Client
+	localHTTPClient         *http.Client
 	initRolesFile           string
 	authPolicyFile          string
 	authModelFile           string
@@ -79,7 +73,6 @@ func initialize_endpoint() {
 	flag.StringVar(&endpointDNS, "endpoint.DNS", "localhost", "DNS name of endpoint machine")
 	flag.StringVar(&endpointPublicBind, "endpoint.external.bind", "0.0.0.0", "IP that the scrape proxy will bind to")
 	flag.StringVar(&externalPort, "endpoint.external.port", "9200", "externally exposed port for scraping")
-	flag.StringVar(&authorizationPort, "endpoint.authorization.port", "9500", "externally exposed port for access control calls")
 	flag.StringVar(&endpointCert, "endpoint.cert", "auth/endpoint.crt", "full chain endpoint's certificate file")
 	flag.StringVar(&endpointCSR, "endpoint.csr", "auth/endpoint.csr", "csr for the key")
 	flag.StringVar(&endpointPrivKey, "endpoint.key", "auth/endpoint.key", "endpoint's private key file")
@@ -167,6 +160,7 @@ func initialize_endpoint() {
 	}
 
 	httpsClient = common.CreateHttpsClient(caCertsDir, endpointCert, endpointPrivKey)
+	localHTTPClient = &http.Client{}
 
 	// Initialize Access Controller
 	if !common.FileExists(authModelFile) {
@@ -226,50 +220,20 @@ func main() {
 	go func() {
 		log.Println("Starting HTTPS server")
 
-		srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, externalPort, &handler{http.Client{}}, tls.RequireAndVerifyClientCert)
+		srv := common.CreateHttpsServer(caCertsDir, endpointCert, endpointPrivKey, endpointPublicBind, externalPort, &LocalHandler{"HTTPS", localHTTPClient}, tls.RequireAndVerifyClientCert)
 
 		log.Fatal("HTTPS server listening error: ", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 	}()
 
 	// SCION server
 	go func() {
-		log.Println("Starting SCION server")
-		squic.Init(endpointPrivKey, endpointCert)
+		log.Printf("Starting SCION server")
 
-		// Initialize HTTP client
-		tr := &http.Transport{
-			DisableCompression: true,
-		}
-		client := &http.Client{
-			Transport: tr,
-		}
+		err = shttp.ListenAndServeSCION(local.String(), endpointCert, endpointPrivKey, &LocalHandler{"SCION HTTPS", localHTTPClient})
 
-		// Listen on SCION address
-		qsock, err := squic.ListenSCION(nil, &local)
 		if err != nil {
-			log.Fatal("Unable to listen: ", err)
+			log.Printf("SCION HTTP server listening error: %v", err)
 		}
-		log.Println("Listening on: ", qsock.Addr())
-		for {
-			qsess, err := qsock.Accept()
-			if err != nil {
-				// Accept failing means the socket is unusable.
-				log.Fatal("Unable to accept quic session: ", err)
-			}
-			log.Println("Quic session accepted from: ", qsess.RemoteAddr())
-			go handleQUICSession(qsess, *client)
-		}
-	}()
-
-	go func() {
-		router := mux.NewRouter()
-
-		router.HandleFunc("/{mapping}/metrics/list", listMetrics).Methods("GET")
-		//router.HandleFunc("/metrics/authorization", requestPermissions).Methods("POST") // TODO
-
-		srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, authorizationPort, router, tls.NoClientCert)
-		log.Println("Starting server without client verification")
-		log.Fatal("Server without client verification listening error:", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 	}()
 
 	// Management Server
@@ -312,89 +276,25 @@ func main() {
 		log.Println("localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()
 
-	srv := common.CreateHttpsServer(caCertsDir, endpointPublicBind, managementAPIPort, router, tls.RequireAndVerifyClientCert)
+	srv := common.CreateHttpsServer(caCertsDir, endpointCert, endpointPrivKey, endpointPublicBind, managementAPIPort, router, tls.RequireAndVerifyClientCert)
 	log.Println("Starting HTTPS management server")
 	log.Fatal("HTTPS server listening error: ", srv.ListenAndServeTLS(endpointCert, endpointPrivKey))
 }
 
-func handleQUICSession(qsess quic.Session, client http.Client) {
-	source, _ := snet.AddrFromString(qsess.RemoteAddr().String())
-
-	// Authenticate source
-	if err := common.DRKeyAuthenticate(source); err != nil {
-		log.Println("Failed authenticating source:", err)
-		return
-	}
-
-	// Accept a stream over the session
-	qstream, err := qsess.AcceptStream()
-	if err != nil {
-		log.Println("Unable to accept quic stream: ", err)
-		return
-	}
-
-	decoder := gob.NewDecoder(qstream)
-	encoder := gob.NewEncoder(qstream)
-
-	// Read and decode request from the stream
-	var req types.Request
-	err = decoder.Decode(&req)
-	if err != nil {
-		log.Println("Failed decoding request: ", err)
-		return
-	}
-
-	path := req.URL.Path
-	// Check if remote is authorized to scrape
-	if err != nil {
-		log.Println("Could not parse remote address to snet.Addr:", err)
-		return
-	}
-	sourceID := source.IA.String() + ":" + source.Host.IP().String()
-	if err := accessController.Authorized(sourceID, path); err != nil {
-		log.Println("Remote ", source, "not authorized to scrape endpoint")
-		return
-	}
-	// Make HTTP GET request to mapped target
-	resp, err := LocalhostGet(path, client)
-	if err != nil {
-		log.Println("Failed contacting local target:", err)
-		return
-	}
-
-	// Read response and parse body to []MetricFamily
-	metrics := DecodeResponseBody(resp)
-	// Filter metrics according to authorization policy
-	filteredMetrics := accessController.FilterMetrics(sourceID, path, metrics)
-	// Create new response body with filtered metrics
-	byts, err := EncodeMetrics(filteredMetrics, expfmt.Negotiate(req.Header))
-	if err != nil {
-		log.Println("Error while encoding metrics:", err)
-		return
-	}
-	resp.Body = ioutil.NopCloser(bytes.NewReader(byts))
-
-	// read and encode HTTP response
-	quicResp := common.CopyResponseToQUIC(*resp)
-	err = encoder.Encode(quicResp)
-	if err != nil {
-		log.Println("Failed encoding response: ", err)
-		return
-	}
-}
-
-type handler struct {
-	client http.Client
+type LocalHandler struct {
+	clientType string
+	client   *http.Client
 }
 
 // Redirects to the right port on localhost based on request path and configured mapping
-func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *LocalHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	log.Printf("Received %s request for path %s", h.clientType, req.URL)
 	// Get path from request
 	path := req.URL.Path
 	// Get internal port from mapping
 	resp, err := LocalhostGet(path, h.client)
 	if err != nil {
-		log.Printf("Failed: HTTPS request from %s to %s%s. Error is: %v", req.RemoteAddr, req.Host, req.URL, err)
+		log.Printf("Failed: %s request from %s to %s%s. Error is: %v", h.clientType, req.RemoteAddr, req.Host, req.URL, err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -409,11 +309,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add(k, v)
 		}
 	}
-	log.Printf("Succeeded: HTTPS request from %s to %s%s", req.RemoteAddr, req.Host, req.URL)
+	log.Printf("Succeeded: %s request from %s to %s%s", h.clientType, req.RemoteAddr, req.Host, req.URL)
 }
 
-
-func LocalhostGet(path string, client http.Client) (*http.Response, error) {
+func LocalhostGet(path string, client *http.Client) (*http.Response, error) {
 	// Make HTTP GET request to mapped target on localhost
 	reloadMappingsMutex.Lock()
 	internalPort := internalMapping[path]
@@ -424,7 +323,7 @@ func LocalhostGet(path string, client http.Client) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://" + endpointLocalTarget + ":" +internalPort+path)
+		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://"+endpointLocalTarget+":"+internalPort+path)
 		return nil, err
 	}
 	return resp, nil

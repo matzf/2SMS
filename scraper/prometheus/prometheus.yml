@@ -2,5 +2,53 @@ global:
   scrape_interval: 10s
   scrape_timeout: 10s
   evaluation_interval: 15s
-alerting:
 scrape_configs:
+- job_name: 17-ffaa:1:c5 127.0.0.1 cs
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  metrics_path: /17-ffaa:1:c5/cs
+  scheme: http
+  static_configs:
+  - targets:
+    - 127.0.0.1:9199
+    labels:
+      AS: ffaa:1:c5
+      ISD: "17"
+      service: cs
+  proxy_url: http://127.0.0.1:9901
+- job_name: 17-ffaa:1:c5 127.0.0.1 ps
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  metrics_path: /17-ffaa:1:c5/ps
+  scheme: http
+  static_configs:
+  - targets:
+    - 127.0.0.1:9199
+    labels:
+      AS: ffaa:1:c5
+      ISD: "17"
+      service: ps
+  proxy_url: http://127.0.0.1:9901
+- job_name: 17-ffaa:1:c5 127.0.0.1 br
+  scrape_interval: 10s
+  scrape_timeout: 10s
+  metrics_path: /17-ffaa:1:c5/br
+  scheme: http
+  static_configs:
+  - targets:
+    - 127.0.0.1:9199
+    labels:
+      AS: ffaa:1:c5
+      ISD: "17"
+      service: br
+  proxy_url: http://127.0.0.1:9901
+- job_name: 17-ffaa:1:c5 127.0.0.1 bs
+  metrics_path: /17-ffaa:1:c5/bs
+  static_configs:
+  - targets:
+    - 127.0.0.1:9199
+    labels:
+      AS: ffaa:1:c5
+      ISD: "17"
+      service: bs
+  proxy_url: http://127.0.0.1:9901

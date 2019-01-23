@@ -157,7 +157,7 @@ func main() {
 		// Retrieve certificate
 		router.HandleFunc("/certificates/{type}/{ip}/get", getCert).Methods("GET")
 
-		srv := common.CreateHttpsServer(caDir, "", noClientVerifPort, router, tls.NoClientCert)
+		srv := common.CreateHttpsServer(caDir, managerCert, managerPrivKey, "", noClientVerifPort, router, tls.NoClientCert)
 		log.Println("Starting server without client verification")
 		log.Fatal("Server without client verification listening error:", srv.ListenAndServeTLS(managerCert, managerPrivKey))
 	}()
@@ -174,7 +174,7 @@ func main() {
 
 		router.HandleFunc("/storages/register", registerStorage).Methods("POST")
 
-		srv := common.CreateHttpsServer(caDir, "", clientVerifPort, router, tls.RequireAndVerifyClientCert)
+		srv := common.CreateHttpsServer(caDir, managerCert, managerPrivKey, "", clientVerifPort, router, tls.RequireAndVerifyClientCert)
 		log.Println("Starting server with client verification")
 		log.Fatal("Server with client verification listening error:", srv.ListenAndServeTLS(managerCert, managerPrivKey))
 	}()

@@ -106,7 +106,7 @@ func SyncPermissions(addMappings, delMappings types.EndpointMappings) {
 		accessController.DeleteAllMappingPermissions(path)
 	}
 	for mapping := range addMappings {
-		metricInfos := GetMetricsInfoForMapping(mapping, http.Client{})
+		metricInfos := GetMetricsInfoForMapping(mapping, localHTTPClient)
 		perms := make([]string, len(metricInfos))
 		for i, info := range metricInfos {
 			perms[i] = info.Name

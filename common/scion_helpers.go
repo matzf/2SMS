@@ -10,12 +10,10 @@ import (
 	"os"
 
 	"fmt"
-	"github.com/juagargi/temp_squic"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"io/ioutil"
-	"path"
 )
 
 func LoadConfig(ia addr.IA) (*conf.Conf, error) {
@@ -33,13 +31,6 @@ func InitNetwork(local snet.Addr, sciond, dispatcher *string) {
 		log.Fatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Println("SCION network successfully initialized")
-	SC := os.Getenv("SC")
-	keypath := path.Join(SC, "gen-certs", "tls.key")
-	pempath := path.Join(SC, "gen-certs", "tls.pem")
-	if err := squic.Init(keypath, pempath); err != nil {
-		log.Fatal("Unable to initialize QUIC/SCION", "err", err)
-	}
-	log.Println("QUIC/SCION successfully initialized")
 }
 
 func CopyRequestToQUIC(r http.Request) types.Request {

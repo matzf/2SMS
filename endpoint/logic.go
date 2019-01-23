@@ -2,7 +2,7 @@ package main
 
 import "net/http"
 
-func GetMetricsInfoForMapping(mapping string, client http.Client) []*MetricInfo {
+func GetMetricsInfoForMapping(mapping string, client *http.Client) []*MetricInfo {
 	resp, err := LocalhostGet(mapping, client)
 	if err != nil {
 		return []*MetricInfo{}

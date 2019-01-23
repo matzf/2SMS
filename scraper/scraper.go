@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"log"
@@ -56,7 +55,7 @@ var (
 	dispatcher              = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	isdCoverage string
-	enableQUIC  bool
+	enableSQUIC bool
 )
 
 func initScraper() {
@@ -84,11 +83,8 @@ func initScraper() {
 	flag.StringVar(&managerVerifPort, "manager.verif-port", "10001", "port where manager listens for authenticated operations")
 	flag.StringVar(&isdCoverage, "scraper.coverage", "", "comma separated list of ISD numbers for which the scraper should accept targets")
 
-	flag.BoolVar(&enableQUIC, "enableQUIC", false, "Determines whether QUIC should be used for scraping")
+	flag.BoolVar(&enableSQUIC, "enableSQUIC", false, "Determines whether QUIC should be used for scraping")
 	flag.Parse()
-
-	gob.Register(types.Request{})
-	gob.Register(types.Response{})
 
 	// Create directory to store auth data
 	if !common.FileExists(authDir) {
@@ -186,15 +182,10 @@ func main() {
 
 	// Proxy for scraping
 	go func() {
-		// Create HTTPS client
-		client := common.CreateHttpsClient(caCertsDir, scraperCert, scraperPrivKey)
-		// Create SCION client
-		sclient := SCIONClient{local}
-
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalScrapePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC: enableQUIC},
+			Handler:        CreateScraperProxyHandler(caCertsDir, scraperCert, scraperPrivKey, &local, enableSQUIC),
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
@@ -205,15 +196,10 @@ func main() {
 
 	// Proxy for remote writing
 	go func() {
-		// Create HTTPS client
-		client := common.CreateHttpsClient(caCertsDir, scraperCert, scraperPrivKey)
-		// Create SCION client
-		sclient := SCIONClient{local}
-
 		// Start server listening on localhost only
 		s := &http.Server{
 			Addr:           "127.0.0.1:" + internalWritePort,
-			Handler:        &scraperProxyHandler{httpsClient: client, scionClient: &sclient, enableQUIC: enableQUIC},
+			Handler:        CreateScraperProxyHandler(caCertsDir, scraperCert, scraperPrivKey, &local, enableSQUIC),
 			ReadTimeout:    10 * time.Second,
 			WriteTimeout:   10 * time.Second,
 			MaxHeaderBytes: 1 << 20,
@@ -239,7 +225,7 @@ func main() {
 		log.Fatal("Localhost HTTP server listening error: ", srv.ListenAndServe())
 	}()
 
-	srv := common.CreateHttpsServer(caCertsDir, "", managementAPIPort, router, tls.RequireAndVerifyClientCert)
+	srv := common.CreateHttpsServer(caCertsDir, scraperCert, scraperPrivKey, "", managementAPIPort, router, tls.RequireAndVerifyClientCert)
 	log.Println("Starting management server")
 	log.Fatal("Management server listening error: ", srv.ListenAndServeTLS(scraperCert, scraperPrivKey))
 }
