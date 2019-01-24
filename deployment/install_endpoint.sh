@@ -19,16 +19,19 @@ echo "Creating installation directory at $INSTALLATION_PATH"
 mkdir -p $INSTALLATION_PATH
 cd $INSTALLATION_PATH
 
-# Download binary file
-echo "Downloading binary"
+# Download latest endpoint binary
+echo "Downloading endpoint binary"
 rm -f endpoint
 git clone https://gist.github.com/baehless/0af8c4fca2db16737a6e31b7e725ad98 >/dev/null 2>&1
 mv 0af8c4fca2db16737a6e31b7e725ad98/endpoint .
+mv 0af8c4fca2db16737a6e31b7e725ad98/create_endpoint_mappings.sh .
 rm -rf 0af8c4fca2db16737a6e31b7e725ad98
 # Make executable
 chmod +x endpoint
+chmod +x create_endpoint_mappings.sh
 
-# node exporter
+# Download node exporter binary
+echo "Downloading node exporter binary"
 wget https://gist.github.com/juagargi/376323076d37bf319ec29eb2b0a071f4/raw/868a5783bac9ef8abecb17774b47264c22ee51c2/node_exporter.gz -O node_exporter.gz >/dev/null 2>&1
 rm -f node_exporter
 gunzip node_exporter.gz
@@ -36,6 +39,8 @@ chmod +x node_exporter
 mkdir -p node-exporter
 mv node_exporter node-exporter/
 
+# Download configuration files
+echo "Downloading configuration files"
 wget https://gist.github.com/juagargi/376323076d37bf319ec29eb2b0a071f4/raw/868a5783bac9ef8abecb17774b47264c22ee51c2/endpoint-deployment.tgz -O endpoint-deployment.tgz >/dev/null 2>&1
 tar xf endpoint-deployment.tgz
 if [ ! -f ca_certs/bootstrap.json ] || [ ! -f ca_certs/ca.crt ] || [ ! -f ca_certs/ISD*AS*.crt ] || [ ! -f auth/model.conf ]; then
@@ -72,7 +77,8 @@ else
 fi
 
 # Create mappings file
-# TODO: make sure the script is downloaded
+echo "Removing previous mappings file"
+rm mappings.json
 ./create_endpoint_mappings.sh
 
 # Start service
