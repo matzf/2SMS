@@ -50,6 +50,10 @@ var (
 	managerVerifPort        string
 	prometheusListenAddress string
 	prometheusRetention     string
+	prometheusExternalURL	string
+	prometheusRoutePrefix	string
+	prometheusEnableAdminAPI	bool
+	prometheusTSDBPath		string
 	local                   snet.Addr
 	sciond                  = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher              = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
@@ -59,31 +63,34 @@ var (
 )
 
 func initScraper() {
-	flag.StringVar(&prometheusOutFile, "prometheus.out", "prometheus/out", "file where prometheus output is redirected")
-	flag.StringVar(&prometheusExec, "scraper.prometheus.exec", "prometheus/prometheus", "prometheus executable")
-	flag.StringVar(&prometheusConfig, "scraper.prometheus.config", "prometheus/prometheus.yml", "prometheus configuration file")
+	flag.StringVar(&caCertsDir, "ca.certs", "ca_certs", "directory with trusted ca certificates")
 	flag.StringVar(&scraperCert, "scraper.cert", "auth/scraper.crt", "full chain scraper's certificate file")
 	flag.StringVar(&scraperPrivKey, "scraper.key", "auth/scraper.key", "scraper's private key file")
 	flag.StringVar(&scraperCSR, "scraper.csr", "auth/scraper.csr", "csr for the key")
 	flag.StringVar(&scraperDNS, "scraper.DNS", "localhost", "DNS name of scraper machine")
 	flag.StringVar(&scraperIP, "scraper.IP", "127.0.0.1", "IP of scraper machine")
-
+	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
+	flag.StringVar(&localhostManagementPort, "scraper.ports.local", "9999", "port where the local management API is exposed")
 	flag.StringVar(&internalScrapePort, "scraper.ports.interal_scrape", "9901", "port the scraping proxy listens on localhost")
 	flag.StringVar(&internalWritePort, "scraper.ports.interal_write", "9902", "port the writing proxy listens on localhost")
 	flag.StringVar(&managementAPIPort, "scraper.ports.management", "9900", "port where the management API is exposed")
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
+	flag.BoolVar(&enableSQUIC, "enableSQUIC", false, "Determines whether QUIC should be used for scraping")
+
+	flag.StringVar(&prometheusOutFile, "prometheus.out", "prometheus/out", "file where prometheus output is redirected")
+	flag.StringVar(&prometheusExec, "scraper.prometheus.exec", "prometheus/prometheus", "prometheus executable")
+	flag.StringVar(&prometheusConfig, "scraper.prometheus.config", "prometheus/prometheus.yml", "prometheus configuration file")
 	flag.StringVar(&prometheusListenAddress, "scraper.prometheus.address", "127.0.0.1:9090", "web.listen-address parameter for prometheus")
 	flag.StringVar(&prometheusRetention, "scraper.prometheus.retention", "15d", "retention policy for prometheus server")
-	flag.StringVar(&localhostManagementPort, "scraper.ports.local", "9999", "port where the local management API is exposed")
-
-	flag.StringVar(&caCertsDir, "ca.certs", "ca_certs", "directory with trusted ca certificates")
+	flag.StringVar(&prometheusExternalURL, "scraper.prometheus.url", "http://" + prometheusListenAddress, "external url for prometheus server")
+	flag.StringVar(&prometheusRoutePrefix, "scraper.prometheus.prefix", "", "route prefix for prometheus server")
+	flag.BoolVar(&prometheusEnableAdminAPI, "scraper.prometheus.admin", false, "admin api for prometheus server")
+	flag.StringVar(&prometheusTSDBPath, "scraper.prometheus.tsdb", "data/", "tsdb path for prometheus server")
 
 	flag.StringVar(&managerIP, "manager.IP", "", "ip address of the managers")
 	flag.StringVar(&managerUnverifPort, "manager.unverif-port", "10000", "port where manager listens for certificate request")
 	flag.StringVar(&managerVerifPort, "manager.verif-port", "10001", "port where manager listens for authenticated operations")
 	flag.StringVar(&isdCoverage, "scraper.coverage", "", "comma separated list of ISD numbers for which the scraper should accept targets")
 
-	flag.BoolVar(&enableSQUIC, "enableSQUIC", false, "Determines whether QUIC should be used for scraping")
 	flag.Parse()
 
 	// Create directory to store auth data
@@ -130,7 +137,12 @@ func initScraper() {
 		}
 	}
 
-	configManager = prometheus.ConfigManager{ConfigFile: prometheusConfig, ProxyURL: "http://127.0.0.1:" + internalScrapePort, ListenAddress: prometheusListenAddress}
+	configManager = prometheus.ConfigManager{
+		ConfigFile: prometheusConfig,
+		ProxyURL: fmt.Sprintf("http://%s:%s", scraperIP, internalScrapePort),
+		ListenAddress: prometheusListenAddress,
+		PathPrefix: prometheusRoutePrefix,
+	}
 
 	if isdCoverage == "" {
 		isdCoverage = fmt.Sprint(local.IA.I)
@@ -164,7 +176,18 @@ func main() {
 	// Spawn and manage prometheus server
 	var proc *os.Process
 	go func() {
-		cmd := exec.Command("bash", "-c", prometheusExec+" --config.file="+prometheusConfig+" --web.enable-lifecycle --storage.tsdb.retention="+prometheusRetention+" --web.listen-address="+prometheusListenAddress+" &> "+prometheusOutFile)
+		cmd := exec.Command("bash", "-c", fmt.Sprintf(
+			"%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention=%s --web.enable-lifecycle --web.listen-address=%s --web.external-url=%s --web.route-prefix=%s &> %s",
+			prometheusExec,
+			prometheusConfig,
+			prometheusTSDBPath,
+			prometheusRetention,
+			prometheusListenAddress,
+			prometheusExternalURL,
+			prometheusRoutePrefix,
+			prometheusOutFile,
+			))
+
 		err := cmd.Start()
 		if err != nil {
 			log.Fatal("Failed starting Prometheus command:", err)

@@ -13,7 +13,7 @@ TimeoutStartSec=30
 # -- Modify accordingly if needed: socket path --
 ExecStartPre=/bin/bash -c '/usr/bin/killall prometheus; while [ ! -S /run/shm/sciond/default.sock ]; do /bin/sleep 1; done'
 # -- Modify accordingly if needed: executable path and addresses --
-ExecStart=/home/scion/monitoring/2SMS/deployment/scraper/scraper -local 17-ffaa:0:1102,[192.33.93.196]:0 -scraper.IP 192.33.93.196 -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP 192.33.93.196 -manager.unverif-port 10000 -manager.verif-port 10001
+ExecStart=/home/scion/monitoring/2SMS/deployment/scraper/scraper -local 17-ffaa:0:1102,[192.33.93.196]:0 -scraper.IP 192.33.93.196 -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP 192.33.93.196 -manager.unverif-port 10000 -manager.verif-port 10001 --scraper.prometheus.retention=7d --scraper.prometheus.url=https://monitoring.scionlab.org/prometheus
 Restart=on-failure
 User=scion
 

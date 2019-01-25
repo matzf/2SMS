@@ -12,17 +12,17 @@ import (
 	"github.com/prometheus/prometheus/config"
 )
 
-// TODO: create interface and specific prometheus config manager
 type ConfigManager struct {
 	ConfigFile    string
+	PathPrefix	  string
 	ProxyURL      string // TODO: change to scrape and read/write
 	ListenAddress string
 }
 
 func (cm *ConfigManager) ReloadPrometheus() error {
-	resp, err := http.Post("http://"+cm.ListenAddress+"/-/reload", "application/json", nil)
+	resp, err := http.Post(fmt.Sprintf("http://%s%s/-/reload", cm.ListenAddress, cm.PathPrefix), "application/json", nil)
 	if err != nil {
-		return err
+		return errors.New(fmt.Sprintf("Error while executing reloading POST request. Error is: %v", err))
 	}
 	if resp.StatusCode != 200 {
 		message, _ := ioutil.ReadAll(resp.Body)
