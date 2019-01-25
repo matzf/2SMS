@@ -78,7 +78,7 @@ fi
 
 # Create mappings file
 echo "Removing previous mappings file"
-rm mappings.json
+rm -f mappings.json
 ./create_endpoint_mappings.sh
 
 # Start service
