@@ -9,7 +9,7 @@ if [ $# -gt 1 ]; then
 elif [ $# -eq 1 ]; then
     services_dir="$1"
 else
-    services_dir=$(find $SC/gen -type d -regex ".*/ISD.*/AS.*" | head -n 1)
+    services_dir=$(find $SC/gen/ -type d -regex ".*/ISD.*/AS.*" | head -n 1)
 fi
 
 services=$(ls $services_dir)
