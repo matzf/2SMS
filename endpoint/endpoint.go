@@ -317,13 +317,13 @@ func LocalhostGet(path string, client *http.Client) (*http.Response, error) {
 	reloadMappingsMutex.Lock()
 	internalPort := internalMapping[path]
 	reloadMappingsMutex.Unlock()
-	resp, err := client.Get("http://" + endpointLocalTarget + ":" + internalPort + "/metrics")
+	resp, err := client.Get("http://" + endpointIP + ":" + internalPort + "/metrics")
 	if err != nil {
 		log.Println("Error while contacting local target: ", err)
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://"+endpointLocalTarget+":"+internalPort+path)
+		log.Println("Status code", resp.StatusCode, "instead of 200 from", "http://"+endpointIP+":"+internalPort+path)
 		return nil, err
 	}
 	return resp, nil
