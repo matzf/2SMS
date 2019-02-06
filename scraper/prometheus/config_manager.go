@@ -114,7 +114,7 @@ func (cm *ConfigManager) RemoveTargets(targets []types.Target) {
 }
 
 func (cm *ConfigManager) ReloadPrometheus() error {
-	resp, err := http.Post("http://"+cm.promListenURL+"/-/reload", "application/json", nil)
+	resp, err := http.Post(cm.promListenURL+"/-/reload", "application/json", nil)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error while executing reloading POST request. Error is: %v", err))
 	}
