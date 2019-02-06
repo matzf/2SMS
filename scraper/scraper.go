@@ -30,33 +30,35 @@ import (
 )
 
 var (
-	localhostManagementPort string
-	authDir                 string = "auth"
-	prometheusOutFile       string
-	configManager           prometheus.ConfigManager
-	prometheusExec          string
-	prometheusConfig        string
-	scraperCert             string
-	scraperCSR              string
-	scraperPrivKey          string
-	scraperIP               string
-	scraperDNS              string
-	caCertsDir              string
-	internalScrapePort      string
-	internalWritePort       string
-	managementAPIPort       string
-	managerIP               string
-	managerUnverifPort      string
-	managerVerifPort        string
-	prometheusListenAddress string
-	prometheusRetention     string
-	prometheusExternalURL	string
-	prometheusRoutePrefix	string
-	prometheusEnableAdminAPI	bool
-	prometheusTSDBPath		string
-	local                   snet.Addr
-	sciond                  = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher              = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	prometheusUpdateQueue     int
+	prometheusUpdateFrequency int
+	localhostManagementPort   string
+	authDir                   string = "auth"
+	prometheusOutFile         string
+	configManager             *prometheus.ConfigManager
+	prometheusExec            string
+	prometheusConfig          string
+	scraperCert               string
+	scraperCSR                string
+	scraperPrivKey            string
+	scraperIP                 string
+	scraperDNS                string
+	caCertsDir                string
+	internalScrapePort        string
+	internalWritePort         string
+	managementAPIPort         string
+	managerIP                 string
+	managerUnverifPort        string
+	managerVerifPort          string
+	prometheusListenAddress   string
+	prometheusRetention       string
+	prometheusExternalURL     string
+	prometheusRoutePrefix     string
+	prometheusEnableAdminAPI  bool
+	prometheusTSDBPath        string
+	local                     snet.Addr
+	sciond                    = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher                = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	isdCoverage string
 	enableSQUIC bool
@@ -81,10 +83,12 @@ func initScraper() {
 	flag.StringVar(&prometheusConfig, "scraper.prometheus.config", "prometheus/prometheus.yml", "prometheus configuration file")
 	flag.StringVar(&prometheusListenAddress, "scraper.prometheus.address", "127.0.0.1:9090", "web.listen-address parameter for prometheus")
 	flag.StringVar(&prometheusRetention, "scraper.prometheus.retention", "15d", "retention policy for prometheus server")
-	flag.StringVar(&prometheusExternalURL, "scraper.prometheus.url", "http://" + prometheusListenAddress, "external url for prometheus server")
+	flag.StringVar(&prometheusExternalURL, "scraper.prometheus.url", "http://"+prometheusListenAddress, "external url for prometheus server")
 	flag.StringVar(&prometheusRoutePrefix, "scraper.prometheus.prefix", "", "route prefix for prometheus server")
 	flag.BoolVar(&prometheusEnableAdminAPI, "scraper.prometheus.admin", false, "admin api for prometheus server")
 	flag.StringVar(&prometheusTSDBPath, "scraper.prometheus.tsdb", "data/", "tsdb path for prometheus server")
+	flag.IntVar(&prometheusUpdateFrequency, "scraper.prometheus.frequency", 30, "the update frequency of the prometheus server (in seconds)")
+	flag.IntVar(&prometheusUpdateQueue, "scraper.prometheus.queue", 500, "the update queue size of the prometheus server")
 
 	flag.StringVar(&managerIP, "manager.IP", "", "ip address of the managers")
 	flag.StringVar(&managerUnverifPort, "manager.unverif-port", "10000", "port where manager listens for certificate request")
@@ -137,12 +141,7 @@ func initScraper() {
 		}
 	}
 
-	configManager = prometheus.ConfigManager{
-		ConfigFile: prometheusConfig,
-		ProxyURL: fmt.Sprintf("http://%s:%s", scraperIP, internalScrapePort),
-		ListenAddress: prometheusListenAddress,
-		PathPrefix: prometheusRoutePrefix,
-	}
+	configManager = prometheus.CreateConfigManager(prometheusConfig, "http://127.0.0.1:"+internalScrapePort, "http://"+prometheusListenAddress+prometheusRoutePrefix, prometheusUpdateFrequency, prometheusUpdateQueue)
 
 	if isdCoverage == "" {
 		isdCoverage = fmt.Sprint(local.IA.I)
@@ -186,7 +185,7 @@ func main() {
 			prometheusExternalURL,
 			prometheusRoutePrefix,
 			prometheusOutFile,
-			))
+		))
 
 		err := cmd.Start()
 		if err != nil {
@@ -230,6 +229,9 @@ func main() {
 		log.Println("Starting remote writing proxy server")
 		log.Fatal("Remote writing proxy server listening error: ", s.ListenAndServe())
 	}()
+
+	// Start config manager
+	configManager.Start()
 
 	// Management Server
 	router := mux.NewRouter()

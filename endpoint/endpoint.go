@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/gob"
 	"flag"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"io"
@@ -96,9 +95,6 @@ func initialize_endpoint() {
 
 	flag.BoolVar(&doAccessControl, "", true, "")
 	flag.Parse()
-
-	gob.Register(types.Request{})
-	gob.Register(types.Response{})
 
 	if *sciond == "" {
 		*sciond = sd.GetDefaultSCIONDPath(nil)

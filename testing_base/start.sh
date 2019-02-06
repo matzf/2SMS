@@ -81,7 +81,7 @@ cp ca/bootstrap.json ../endpoint/ca_certs
 
 echo 'Starting scraper application'
 cd ../scraper
-./scraper -local "$IA",[$IP]:0 -scraper.IP $IP -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP $IP -manager.unverif-port 10000 -manager.verif-port 10001 > ../scraper.out 2>&1 &
+./scraper -local "$IA",[$IP]:0 -scraper.IP $IP -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP $IP -manager.unverif-port 10000 -manager.verif-port 10001 -scraper.prometheus.frequency 2 > ../scraper.out 2>&1 &
 
 sleep 1
 

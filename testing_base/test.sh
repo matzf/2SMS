@@ -9,11 +9,16 @@ fail_test() {
     exit 1
 }
 
-
 cd "$BASEDIR"
 
-curl http://localhost:9999/targets -X POST -H 'Content-Type: application/json' -d '{"Name":"deleteme1","ISD":"1","AS":"ffaa:1:a","IP":"127.0.0.1","Port":"32041","Path":"/bs","Labels":{}}]}' -s >/dev/null
+# Try adding a new target
+curl http://localhost:9999/target -X POST -H 'Content-Type: application/json' -d '{"Name":"deleteme1","ISD":"1","AS":"ffaa:1:a","IP":"127.0.0.1","Port":"32041","Path":"/bs","Labels":{}}]}' -s >/dev/null
+sleep 2.5 # Assumes the update frequency of the server is less than 2 seconds
 grep deleteme1 ./scraper/prometheus/prometheus.yml >/dev/null || fail_test "Cannot find 'deleteme1' in the prometheus.yml config file"
 
+# Try removing an old target
+curl http://localhost:9999/target -X DELETE -H 'Content-Type: application/json' -d '{"Name":"deleteme1","ISD":"1","AS":"ffaa:1:a","IP":"127.0.0.1","Port":"32041","Path":"/bs","Labels":{}}]}' -s >/dev/null
+sleep 2.5 # Assumes the update frequency of the server is less than 2 seconds
+grep deleteme1 ./scraper/prometheus/prometheus.yml >/dev/null && fail_test "Found 'deleteme1' in the prometheus.yml config file"
 
 echo "tests ok."
