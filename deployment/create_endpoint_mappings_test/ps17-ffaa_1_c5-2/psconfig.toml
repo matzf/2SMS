@@ -1,0 +1,25 @@
+[general]
+ReconnectToDispatcher = true
+ID = "ps17-ffaa_1_c5-2"
+ConfigDir = "gen/ISD17/ASffaa_1_c5/ps17-ffaa_1_c5-2"
+
+[TrustDB]
+Backend = "sqlite"
+Connection = "gen-cache/ps17-ffaa_1_c5-2.trust.db"
+
+[infra]
+Type = "PS"
+
+[ps]
+SegSync = true
+
+[logging.console]
+Level = "crit"
+
+[ps.PathDB]
+Backend = "sqlite"
+Connection = "gen-cache/ps17-ffaa_1_c5-2.path.db"
+
+[logging.file]
+Level = "debug"
+Path = "logs/ps17-ffaa_1_c5-2.log"

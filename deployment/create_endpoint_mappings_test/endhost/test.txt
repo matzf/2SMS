@@ -1,1 +1,1 @@
-existing directory with completely different name structure and no supervisord.conf file
+directory with correctly configured .toml file for sciond

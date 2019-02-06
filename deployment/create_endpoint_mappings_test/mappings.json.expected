@@ -3,5 +3,9 @@
   {"Path":"/br-1","Port":"32042"},
   {"Path":"/br-2","Port":"32047"},
   {"Path":"/br-33","Port":"32088"},
-  {"Path":"/bs-1","Port":"32041"}
+  {"Path":"/bs-1","Port":"32041"},
+  {"Path":"/cs-1","Port":"32043"},
+  {"Path":"/cs-44","Port":"32033"},
+  {"Path":"/sciond","Port":"32040"},
+  {"Path":"/ps-1","Port":"32044"}
 ]

@@ -1,0 +1,26 @@
+[sd]
+Reliable = "/run/shm/sciond/default.sock"
+Public = "17-ffaa:1:c5,[127.0.0.1]:0"
+Unix = "/run/shm/sciond/default.unix"
+
+[general]
+ID = "sd17-ffaa_1_a"
+ConfigDir = "gen/ISD17/ASffaa_1_c5/endhost"
+ReconnectToDispatcher = true
+
+[TrustDB]
+Connection = "gen-cache/sd17-ffaa_1_c5.trust.db"
+Backend = "sqlite"
+
+[logging.file]
+Path = "logs/sd17-ffaa_1_c5.log"
+Level = "debug"
+
+[logging.console]
+Level = "crit"
+
+[sd.PathDB]
+Connection = "gen-cache/sd17-ffaa_1_c5.path.db"
+
+[metrics]
+Prometheus = "127.0.0.1:32040"

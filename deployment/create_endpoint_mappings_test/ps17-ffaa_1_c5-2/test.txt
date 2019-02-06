@@ -1,0 +1,1 @@
+correctly configured ps service without 'Prometheus' key in psconfig.toml file

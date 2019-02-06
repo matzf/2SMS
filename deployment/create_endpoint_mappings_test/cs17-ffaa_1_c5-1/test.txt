@@ -1,1 +1,1 @@
-correctly configured cs service (TODO: still no prometheus configuration provided)
+correctly configured cs service

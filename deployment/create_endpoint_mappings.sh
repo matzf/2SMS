@@ -17,47 +17,67 @@ mapping_file='mappings.json'
 
 [ -f $mapping_file ] && { echo "$mapping_file already exists, skipping initialization"; exit 0; }
 
-touch $mapping_file
-
 # Find mappings
 echo "Looking for mappings in '$services_dir'"
 declare -a mappings
+# Add default mappings
 mappings+='{"Path":"/node","Port":"9100"}'
+
 for s in $services; do
     service_dir="$services_dir/$s"
-    if [ -d $service_dir ] && { [[ $s =~ ^br[0-9]+.*$ ]] || [[ $s =~ ^ps[0-9]+.*$ ]] || [[ $s =~ ^bs[0-9]+.*$ ]] || [[ $s =~ ^cs[0-9]+.*$ ]]; }; then
-        # TODO: changes to cs and ps parsing (will be in a .toml file instead of the supervisord.conf)
-        # Don't add cs and ps instances until they expose metrics
-        if [[ $s =~ ^cs.*$ ]]; then
-            echo "Skipping certificate server ('$service_dir') because it doesn't yet expose metrics."
-            continue
-        elif [[ $s =~ ^ps.*$ ]]; then
-            echo "Skipping path server ('$service_dir') because it doesn't yet expose metrics."
+    if [ -d $service_dir ]; then
+        port=""
+        name=""
+        config_file=""
+        is_toml=true
+        # Check if the directory corresponds to a service exposing metrics
+        if [[ $s =~ ^cs[0-9]+.*$ ]] || [[ $s =~ ^ps[0-9]+.*$ ]] || [[ $s = endhost ]]; then
+            if [[ $s = endhost ]]; then
+                name="sciond"
+                config_file="$service_dir/sciond.toml"
+            else
+                name="$(sed -r 's/^([a-z]+)[0-9]+-.*-([0-9]+)$/\1-\2/' <<< $s)"
+                config_file="$service_dir/${name:0:2}config.toml"
+            fi
+        elif [[ $s =~ ^br[0-9]+.*$ ]] || [[ $s =~ ^bs[0-9]+.*$ ]]; then
+            is_toml=false
+            name="$(sed -r 's/^([a-z]+)[0-9]+-.*-([0-9]+)$/\1-\2/' <<< $s)"
+            config_file="$service_dir/supervisord.conf"
+        else
+            echo "'$service_dir' is not of interest for creating mappings"
             continue
         fi
-        supervisor_file="$service_dir/supervisord.conf"
-        if [ -f $supervisor_file ]; then
-            # Find port from `prom` argument in supervisor.conf file
-            port=$(sed -ne '/.*-prom\>[^:]*:\([0-9]*\).*/{s//\1/p;q}' $supervisor_file)
-            name="$(sed -r 's/^([a-z]+)[0-9]+-.*-([0-9]+)$/\1-\2/' <<< $s)"
-            if [ ! -z $port ]; then
-                mapping='{"Path":"/'$name'","Port":"'$port'"}'
-                mappings+=($mapping)
-                echo "Added $mapping"
+
+        # Parse the configuration file to find the port where the metrics are exposed
+        echo "Looking for $config_file"
+        if [ -f $config_file ]; then
+            if $is_toml; then
+                # Find port from `Prometheus` key in the service .toml config file
+                port=$(sed -ne '/^Prometheus *= *".*:\([0-9]*\)".*$/{s//\1/p;q}'  $config_file)
             else
-                echo "No 'prom' argument found in '$supervisor_file'"
+                # Find port from `prom` argument in the service supervisord.conf file
+                port=$(sed -ne '/.*-prom\>[^:]*:\([0-9]*\).*/{s//\1/p;q}' $config_file)
             fi
         else
-            echo "'$supervisor_file' not found"
+            echo "'$config_file' not found"
+            continue
         fi
-    else
-        echo "'$service_dir' is not of interest for creating mappings"
+
+        # Create the mapping corresponding to the port
+        if [ ! -z $port ]; then
+            mapping='{"Path":"/'$name'","Port":"'$port'"}'
+            mappings+=($mapping)
+            echo "Added $mapping"
+        else
+            echo "No prometheus-related parameter found in '$config_file'"
+        fi
     fi
 done
 map_len=${#mappings[@]}
 
-# Write to file
+# Write all mappings to file
 echo "Writing mappings to file"
+touch $mapping_file
 echo "[" >> $mapping_file
 for ((i=0; i < $((map_len - 1)); i++)); do
     echo "  ${mappings[$i]}," >> $mapping_file

@@ -23,3 +23,6 @@ Connection = "gen-cache/ps17-ffaa_1_c5-1.path.db"
 [logging.file]
 Level = "debug"
 Path = "logs/ps17-ffaa_1_c5-1.log"
+
+[metrics]
+Prometheus = "127.0.0.1:32044"
