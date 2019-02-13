@@ -11,6 +11,7 @@ DEFAULT_SOCKET=/run/shm/sciond/default.sock
 SERVICE_FILE_NAME=2SMSendpoint.service
 SERVICE_FILE_LOCATION=/etc/systemd/system
 MANAGER_IP='192.33.93.196'
+monitoring_download_page="monitoring.scionlab.org/downloads/public/endpoint"
 IP=$(curl -s ipinfo.io/ip)
 [ -f $SC/gen/ia ] && IA=$(cat $SC/gen/ia | sed 's/_/:/g') || { echo "Missing $SC/gen/ia file"; exit 1; }
 
@@ -22,36 +23,35 @@ cd $INSTALLATION_PATH
 # Download latest endpoint binary
 echo "Downloading endpoint binary"
 rm -f endpoint
-git clone https://gist.github.com/baehless/0af8c4fca2db16737a6e31b7e725ad98 >/dev/null 2>&1
-mv 0af8c4fca2db16737a6e31b7e725ad98/endpoint .
-mv 0af8c4fca2db16737a6e31b7e725ad98/create_endpoint_mappings.sh .
-rm -rf 0af8c4fca2db16737a6e31b7e725ad98
-# Make executable
+wget "https://$monitoring_download_page/endpoint.tar.gz" >/dev/null 2>&1
+tar -xzvf endpoint.tar.gz
+rm -f endpoint.tar.gz
 chmod +x endpoint
-chmod +x create_endpoint_mappings.sh
 
 # Download node exporter binary
 echo "Downloading node exporter binary"
-wget https://gist.github.com/juagargi/376323076d37bf319ec29eb2b0a071f4/raw/868a5783bac9ef8abecb17774b47264c22ee51c2/node_exporter.gz -O node_exporter.gz >/dev/null 2>&1
-rm -f node_exporter
-gunzip node_exporter.gz
+rm -rf node-exporter/node_exporter
+wget "https://$monitoring_download_page/node_exporter.tar.gz" >/dev/null 2>&1
+tar -xzvf node_exporter.tar.gz
+rm -f node_exporter.tar.gz
 chmod +x node_exporter
 mkdir -p node-exporter
 mv node_exporter node-exporter/
 
 # Download configuration files
 echo "Downloading configuration files"
-wget https://gist.github.com/juagargi/376323076d37bf319ec29eb2b0a071f4/raw/868a5783bac9ef8abecb17774b47264c22ee51c2/endpoint-deployment.tgz -O endpoint-deployment.tgz >/dev/null 2>&1
-tar xf endpoint-deployment.tgz
-if [ ! -f ca_certs/bootstrap.json ] || [ ! -f ca_certs/ca.crt ] || [ ! -f ca_certs/ISD*AS*.crt ] || [ ! -f auth/model.conf ]; then
-    echo "ca_certs/ or auth/ files missing after unpacking endpoint-deployment.tgz from our gist"
+wget "https://$monitoring_download_page/endpoint_configuration.tar.gz" >/dev/null 2>&1
+tar -xzvf endpoint_configuration.tar.gz
+rm -f endpoint_configuration.tar.gz
+mv -n configuration/* .
+rm -rf configuration
+
+# Check contents
+if [ ! -f ca_certs/bootstrap.json ] || [ ! -f ca_certs/ca.crt ] || [ ! -f ca_certs/ISD*AS*.crt ] || [ ! -f auth/model.conf ] || [ ! -f 2SMSendpoint.service ] || [ ! -f create_endpoint_mappings.sh ]; then
+    echo "Some required configuration file is missing from the unpacked endpoint_configuration archive. Please make sure that you have the following files: ca_certs/boostrap.json, ca_certs/ca.crt, ca_certs/ISD*AS*.crt, auth/model.conf, 2SMSendpoint.service, create_endpoint_mappings.sh"
     exit 1
 fi
-
-# Download service file
-echo "Downloading service file"
-rm -f $SERVICE_FILE_NAME
-wget https://raw.githubusercontent.com/netsec-ethz/2SMS/master/endpoint/2SMSendpoint.service -O $SERVICE_FILE_NAME >/dev/null 2>&1
+chmod +x create_endpoint_mappings.sh
 
 # Modify service file with correct SCION address and IP parameters
 sed -i -r "s/_USER_/$USER/g;s/_MANAGER_IP_/$MANAGER_IP/g;s/^(.+)_IA_,\[_IP_\]:9199 (.+)$/\1$IA,[$IP]:9199 \2/g" $SERVICE_FILE_NAME
