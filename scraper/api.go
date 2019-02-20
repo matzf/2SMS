@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/prometheus/prometheus/config"
 	"log"
 	"net/http"
 )
+
+// TODO: call config manager instead of doing everything here (just parse request and build answer)
 
 func AddTarget(w http.ResponseWriter, r *http.Request) {
 	// Parse body
@@ -25,19 +25,13 @@ func AddTarget(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListTargets(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := configManager.LoadFile()
+	targets := configManager.GetTargets()
+
+	err := json.NewEncoder(w).Encode(targets)
 	if err != nil {
-		fmt.Println("Error while loading parsedConfig from file:", err)
-		w.WriteHeader(500)
-	} else {
-		targets := []types.Target{}
-		for _, job := range parsedConfig.ScrapeConfigs {
-			var target types.Target
-			target.FromScrapeConfig(job)
-			// Extend
-			targets = append(targets, target)
-		}
-		json.NewEncoder(w).Encode(targets)
+		log.Printf("Failed encoding response. Error is: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -55,52 +49,53 @@ func RemoveTarget(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// TODO: reimplement in config manager and call from there
 func RemoveStorage(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := configManager.LoadFile()
-	if err != nil {
-		fmt.Println("Error while loading parsedConfig from file:", err)
-		w.WriteHeader(400)
-	} else {
-		// Parse body
-		var storage types.Storage
-		_ = json.NewDecoder(r.Body).Decode(&storage)
-
-		// Check if name exists
-		if !storage.ExistsInConfig(parsedConfig) {
-			w.WriteHeader(400)
-			w.Write([]byte("Remote read/write not found."))
-			return
-		}
-
-		// Remove remote read/write
-		var newWriteConfigs []*config.RemoteWriteConfig
-		for _, writeConfig := range parsedConfig.RemoteWriteConfigs {
-			if writeConfig.URL.String() != storage.BuildWriteURL() {
-				newWriteConfigs = append(newWriteConfigs, writeConfig)
-			}
-		}
-		parsedConfig.RemoteWriteConfigs = newWriteConfigs
-
-		var newReadConfigs []*config.RemoteReadConfig
-		for _, readConfig := range parsedConfig.RemoteReadConfigs {
-			if readConfig.URL.String() != storage.BuildReadURL() {
-				newReadConfigs = append(newReadConfigs, readConfig)
-			}
-		}
-		parsedConfig.RemoteReadConfigs = newReadConfigs
-
-		configManager.WriteConfig(parsedConfig)
-		configManager.ReloadPrometheus()
-		log.Println("Removed remote read/write from config:", fmt.Sprint(storage.IA)+" "+storage.IP)
-
-		err := configManager.ReloadPrometheus()
-		if err != nil {
-			log.Println("Failed reloading Prometheus:", err)
-			w.WriteHeader(500)
-			return
-		}
-		w.WriteHeader(204)
-	}
+	//parsedConfig, err := configManager.LoadFile()
+	//if err != nil {
+	//	fmt.Println("Error while loading parsedConfig from file:", err)
+	//	w.WriteHeader(400)
+	//} else {
+	//	// Parse body
+	//	var storage types.Storage
+	//	_ = json.NewDecoder(r.Body).Decode(&storage)
+	//
+	//	// Check if name exists
+	//	if !storage.ExistsInConfig(parsedConfig) {
+	//		w.WriteHeader(400)
+	//		w.Write([]byte("Remote read/write not found."))
+	//		return
+	//	}
+	//
+	//	// Remove remote read/write
+	//	var newWriteConfigs []*config.RemoteWriteConfig
+	//	for _, writeConfig := range parsedConfig.RemoteWriteConfigs {
+	//		if writeConfig.URL.String() != storage.BuildWriteURL() {
+	//			newWriteConfigs = append(newWriteConfigs, writeConfig)
+	//		}
+	//	}
+	//	parsedConfig.RemoteWriteConfigs = newWriteConfigs
+	//
+	//	var newReadConfigs []*config.RemoteReadConfig
+	//	for _, readConfig := range parsedConfig.RemoteReadConfigs {
+	//		if readConfig.URL.String() != storage.BuildReadURL() {
+	//			newReadConfigs = append(newReadConfigs, readConfig)
+	//		}
+	//	}
+	//	parsedConfig.RemoteReadConfigs = newReadConfigs
+	//
+	//	configManager.WriteConfig(parsedConfig)
+	//	configManager.ReloadPrometheus()
+	//	log.Println("Removed remote read/write from config:", fmt.Sprint(storage.IA)+" "+storage.IP)
+	//
+	//	err := configManager.ReloadPrometheus()
+	//	if err != nil {
+	//		log.Println("Failed reloading Prometheus:", err)
+	//		w.WriteHeader(500)
+	//		return
+	//	}
+	//	w.WriteHeader(204)
+	//}
 }
 
 // TODO: reimplement in config manager and call from there
@@ -141,20 +136,21 @@ func AddStorage(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(400)
 }
 
+// TODO: reimplement in config manager and call from there
 func ListStorages(w http.ResponseWriter, r *http.Request) {
-	parsedConfig, err := configManager.LoadFile()
-	if err != nil {
-		fmt.Println("Error while loading config from file:", err)
-		w.WriteHeader(500)
-		return
-	}
-
-	storages := []*types.Storage{}
-	for _, rWrite := range parsedConfig.RemoteWriteConfigs {
-		var s types.Storage
-		s.FromRemoteConfig(rWrite)
-		// Extend
-		storages = append(storages, &s)
-	}
-	json.NewEncoder(w).Encode(storages)
+	//parsedConfig, err := configManager.LoadFile()
+	//if err != nil {
+	//	fmt.Println("Error while loading config from file:", err)
+	//	w.WriteHeader(500)
+	//	return
+	//}
+	//
+	//storages := []*types.Storage{}
+	//for _, rWrite := range parsedConfig.RemoteWriteConfigs {
+	//	var s types.Storage
+	//	s.FromRemoteConfig(rWrite)
+	//	// Extend
+	//	storages = append(storages, &s)
+	//}
+	//json.NewEncoder(w).Encode(storages)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"github.com/scionproto/scion/go/lib/snet"
 	"io"
@@ -26,7 +27,6 @@ func CreateScraperProxyHandler(scraperCACertsDir, scraperCert, scraperPrivKey st
 	dnsMap := make(map[string]*snet.Addr)
 	scionClient := &http.Client{
 		Transport: &shttp.Transport{
-			DNS:   dnsMap,
 			LAddr: localAddress,
 		},
 	}
@@ -54,29 +54,22 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	// If SQUIC is enabled try first with it
 	if enableSQUIC {
-		var remoteAddr *snet.Addr
-		remoteAddr, err = snet.AddrFromString(fmt.Sprintf("%s,[%s]:%s", ia, ip, port))
+		//remoteAddr := fmt.Sprintf("%s,[%s]:%s", ia, ip, port)
+		remoteAddr := fmt.Sprintf("%s,[%s]", ia, ip)
+		// Hack to have shttp working (remove once scion addresses can be used directly in the url)
+		remoteAddrUrl := strings.Join([]string{ia, ip, port}, "_")
+		scionutil.AddHost(remoteAddrUrl, remoteAddr)
+
+		// Perform HTTP request using SCION client
+		resp, err = sph.forwardRequest(true, w, remoteAddrUrl+r.URL.Path, r)
+
 		if err != nil {
-			log.Printf("Failed parsing snet address from string. Error is: %v", err)
-		} else {
-			// Hack to have shttp working (remove once scion addresses can be used directly in the url)
-			remoteAddrUrl := strings.Join([]string{ia, ip, port}, "_")
-			_, ok := sph.dnsMap[remoteAddrUrl]
-			if !ok {
-				sph.dnsMap[remoteAddrUrl] = remoteAddr
-			}
-
-			// Perform HTTP request using SCION client
-			resp, err = sph.forwardRequest(true, w, remoteAddrUrl+r.URL.Path, r)
-
-			if err != nil {
-				log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", remoteAddrUrl+r.URL.Path, err)
-			} else if resp.StatusCode == http.StatusNotFound {
-				// If we couldn't find the path then we don't need to try with IP because it will lead to the same result.
-				log.Printf("Failed: SCION/HTTPS request to %s. Path was not found (404).", remoteAddrUrl+r.URL.Path)
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
+			log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", remoteAddrUrl+r.URL.Path, err)
+		} else if resp.StatusCode == http.StatusNotFound {
+			// If we couldn't find the path then we don't need to try with IP because it will lead to the same result.
+			log.Printf("Failed: SCION/HTTPS request to %s. Path was not found (404).", remoteAddrUrl+r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
 	}
 	// If SQUIC reported an error or it isn't enabled try with IP

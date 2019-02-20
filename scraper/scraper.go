@@ -6,6 +6,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"time"
@@ -73,8 +74,8 @@ func initScraper() {
 	flag.StringVar(&scraperIP, "scraper.IP", "127.0.0.1", "IP of scraper machine")
 	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&localhostManagementPort, "scraper.ports.local", "9999", "port where the local management API is exposed")
-	flag.StringVar(&internalScrapePort, "scraper.ports.interal_scrape", "9901", "port the scraping proxy listens on localhost")
-	flag.StringVar(&internalWritePort, "scraper.ports.interal_write", "9902", "port the writing proxy listens on localhost")
+	flag.StringVar(&internalScrapePort, "scraper.ports.internal_scrape", "9901", "port the scraping proxy listens on localhost")
+	flag.StringVar(&internalWritePort, "scraper.ports.internal_write", "9902", "port the writing proxy listens on localhost")
 	flag.StringVar(&managementAPIPort, "scraper.ports.management", "9900", "port where the management API is exposed")
 	flag.BoolVar(&enableSQUIC, "enableSQUIC", false, "Determines whether QUIC should be used for scraping")
 
@@ -141,8 +142,21 @@ func initScraper() {
 		}
 	}
 
-	configManager = prometheus.CreateConfigManager(prometheusConfig, "http://127.0.0.1:"+internalScrapePort, "http://"+prometheusListenAddress+prometheusRoutePrefix, prometheusUpdateFrequency, prometheusUpdateQueue)
+	prometheusListenURL, err := url.Parse("http://" + prometheusListenAddress + prometheusRoutePrefix)
+	if err != nil {
+		log.Fatalf("Couldn't parse Prometheus listen URL. Error is: %v", err)
+	}
 
+	configManager, err = prometheus.CreateConfigManager(
+		prometheusConfig,
+		"http://127.0.0.1:" + internalScrapePort,
+		prometheusListenURL,
+		prometheusUpdateFrequency,
+		200,
+	)
+	if err != nil {
+		log.Fatalf("Couldn't create the ConfigManager. Error is: %v", err)
+	}
 	if isdCoverage == "" {
 		isdCoverage = fmt.Sprint(local.IA.I)
 	}
@@ -152,7 +166,7 @@ func initScraper() {
 		client := common.CreateHttpsClient(caCertsDir, scraperCert, scraperPrivKey)
 		data, err := json.Marshal(types.Scraper{
 			IA:         local.IA.String(),
-			IP:         local.Host.IP().String(),
+			IP:         local.Host.L3.IP().String(),
 			ManagePort: managementAPIPort,
 			ISDs:       strings.Split(isdCoverage, ","),
 		})
@@ -235,9 +249,9 @@ func main() {
 
 	// Management Server
 	router := mux.NewRouter()
-	router.HandleFunc("/targets", ListTargets).Methods("GET")
 	router.HandleFunc("/targets", AddTarget).Methods("POST")
 	router.HandleFunc("/targets", RemoveTarget).Methods("DELETE")
+	router.HandleFunc("/targets", ListTargets).Methods("GET")
 	router.HandleFunc("/storages", ListStorages).Methods("GET")
 	router.HandleFunc("/storages", AddStorage).Methods("POST")
 	router.HandleFunc("/storages", RemoveStorage).Methods("DELETE")

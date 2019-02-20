@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -70,7 +70,7 @@ func Bootstrap(rootCertFile, bootstrapDataFile string) error {
 		return err
 	}
 	// Verify the signature
-	err = crypto.Verify(sigInput, bootstrapData.RawSignature, verifyKey, "ed25519")
+	err = scrypto.Verify(sigInput, bootstrapData.RawSignature, verifyKey, "ed25519")
 	if err != nil {
 		log.Printf("Failed verifying %v with key %v from %v against signature %v", sigInput, bootstrapData.RawSignature, bootstrapData.IA, verifyKey)
 	}

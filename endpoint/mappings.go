@@ -128,7 +128,7 @@ func SyncManager(addMappings, delMappings types.EndpointMappings) error {
 	target.AS = local.IA.A.String()
 	target.ISD = fmt.Sprint(local.IA.I)
 	target.IP = endpointIP
-	target.Port = fmt.Sprint(local.L4Port)
+	target.Port = fmt.Sprint(local.Host.L4.Port())
 	target.Labels = make(map[string]string)
 
 	for path := range delMappings {
@@ -154,8 +154,8 @@ func SyncManager(addMappings, delMappings types.EndpointMappings) error {
 	}
 	data, err := json.Marshal(types.Endpoint{
 		IA:         local.IA.String(),
-		IP:         local.Host.IP().String(),
-		ScrapePort: fmt.Sprint(local.L4Port),
+		IP:         local.Host.L3.IP().String(),
+		ScrapePort: fmt.Sprint(local.Host.L4.Port()),
 		ManagePort: managementAPIPort,
 		Paths:      paths,
 	})

@@ -110,7 +110,7 @@ func initialize_endpoint() {
 	// Initialize scion network
 	common.InitNetwork(local, sciond, dispatcher)
 
-	endpointIP = local.Host.IP().String()
+	endpointIP = local.Host.L3.IP().String()
 
 	// Bootstrap PKI
 	err := common.Bootstrap(caCertsDir+"/ca.crt", caCertsDir+"/bootstrap.json")

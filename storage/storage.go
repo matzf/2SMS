@@ -18,14 +18,17 @@ import (
 	"crypto/x509/pkix"
 	"encoding/gob"
 	"errors"
+
 	"github.com/gorilla/mux"
-	"github.com/juagargi/temp_squic"
-	"github.com/lucas-clemente/quic-go"
+
+	"io/ioutil"
+	"net"
+
+	quic "github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/2SMS/common/types"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"io/ioutil"
-	"net"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 var (

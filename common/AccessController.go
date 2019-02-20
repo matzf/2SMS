@@ -5,7 +5,6 @@ import (
 	"github.com/casbin/casbin"
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_model/go"
 	"github.com/scionproto/scion/go/lib/addr"
 	"io/ioutil"
 	"log"
@@ -91,7 +90,7 @@ func (ac *AccessController) Authorized(source, path string) error {
 					// Remove "scrape" and window permissions
 					ac.enforcer.DeletePermissionForUser(source, ScrapePermission)
 					ac.enforcer.DeletePermissionForUser(source, window)
-					return errors.New("Time window for " + source + " has exipred")
+					return errors.New("Time window for " + source + " has expired")
 				}
 			}
 			if frequency != "" {
@@ -119,8 +118,8 @@ func (ac *AccessController) Authorized(source, path string) error {
 	return nil
 }
 
-func (ac *AccessController) FilterMetrics(source, path string, metrics []*io_prometheus_client.MetricFamily) []*io_prometheus_client.MetricFamily {
-	filteredMetrics := []*io_prometheus_client.MetricFamily{}
+func (ac *AccessController) FilterMetrics(source, path string, metrics []*MetricFamily) []*MetricFamily {
+	filteredMetrics := []*MetricFamily{}
 	for _, fam := range metrics {
 		if ac.enforcer.Enforce(source, path, *fam.Name) {
 			filteredMetrics = append(filteredMetrics, fam)

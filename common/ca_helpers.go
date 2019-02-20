@@ -11,7 +11,7 @@ import (
 	"github.com/netsec-ethz/2SMS/common/types"
 	"github.com/pkg/errors"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -132,7 +132,7 @@ func NewCA(name *pkix.Name, duration *Duration, privKeyFile, serialFile, certFil
 	// Read ca cert in pem format
 	pemBytes, _ := ioutil.ReadFile(ca.CertFile)
 	// Create signature of raw certificate
-	rawSignature, err := crypto.Sign(pemBytes, signKey, "ed25519") // TODO: handle error
+	rawSignature, err := scrypto.Sign(pemBytes, signKey, "ed25519") // TODO: handle error
 	// TWrite IA and signature to file in json format
 	jsonBytes, err := json.Marshal(types.BootstrapData{IA: localIA, RawSignature: rawSignature}) // TODO: handle error
 	ioutil.WriteFile("ca/bootstrap.json", jsonBytes, 0644)
