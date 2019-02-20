@@ -6,16 +6,16 @@ After=2SMSmanager.service
 [Service]
 Type=simple
 # -- Modify accordingly if needed: directory path --
-WorkingDirectory=/home/scion/monitoring/2SMS/deployment/scraper
-Environment="PATH=/home/scion/.local/bin:/home/scion/go/bin:/usr/lib/go-1.9/bin:/home/scion/bin:/home/scion/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin" "PYTHONPATH=/home/scion/go/src/github.com/scionproto/scion/python:/home/scion/go/src/github.com/scionproto/scion" "SC=/home/scion/go/src/github.com/scionproto/scion"
+WorkingDirectory=/home/_USER_/2SMS/deployment/scraper
+Environment="PATH=/home/_USER_/.local/bin:/home/_USER_/go/bin:/usr/lib/go-1.9/bin:/home/_USER_/bin:/home/_USER_/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin" "PYTHONPATH=/home/_USER_/go/src/github.com/scionproto/scion/python:/home/_USER_/go/src/github.com/scionproto/scion" "SC=/home/_USER_/go/src/github.com/scionproto/scion"
 TimeoutStartSec=30
 # Kill Prometheus server if still running and poll for the sciond default socket file
 # -- Modify accordingly if needed: socket path --
-ExecStartPre=/bin/bash -c '/usr/bin/killall prometheus; while [ ! -S /run/shm/sciond/default.sock ]; do /bin/sleep 1; done'
+#ExecStartPre=/bin/bash -c '/usr/bin/killall prometheus; while [ ! -S /run/shm/sciond/default.sock ]; do /bin/sleep 1; done'
 # -- Modify accordingly if needed: executable path and addresses --
-ExecStart=/home/scion/monitoring/2SMS/deployment/scraper/scraper -local 17-ffaa:0:1102,[192.33.93.196]:0 -scraper.IP 192.33.93.196 -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP 192.33.93.196 -manager.unverif-port 10000 -manager.verif-port 10001 --scraper.prometheus.retention=7d --scraper.prometheus.url=https://monitoring.scionlab.org/prometheus
+ExecStart=/home/_USER_/2SMS/deployment/scraper/scraper -local _IA_,[_IP_]:0 -scraper.IP _IP_ -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP _MANAGER_IP_ -manager.unverif-port 10000 -manager.verif-port 10001 --scraper.prometheus.retention=_PROMETHEUS_RETENTION_ --scraper.prometheus.url=_EXTERNAL_URL_ --scraper.prometheus.prefix=_PATH_PREFIX_ --scraper.prometheus.address=_PROMETHEUS_ADDRESS_
 Restart=on-failure
-User=scion
+User=_USER_
 
 [Install]
 WantedBy=multi-user.target

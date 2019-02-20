@@ -1,0 +1,6 @@
+groups:
+- name: DeadManSwitch # An ever firing alert. If it is not delivered then it means that something in either the Prometheus server or in the alertmanaer is not working properly.
+  rules:
+  - alert: MonitoringHeartBeat
+    expr: up{job="Prometheus"} == 1 # Condition (PromQL syntax) that is used to determine whether the alert should be active (if condition true) or not (otherwise)
+    for: 1m # For how long the above condition should evaluate to true in order for the alert to be considered active (to reduce false positives)

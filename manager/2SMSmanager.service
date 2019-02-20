@@ -1,16 +1,16 @@
 [Unit]
-Description=Scion Monitoring System Manager
+Description=Scion rm -rf ~g System Manager
 After=network.target
 
 [Service]
 Type=simple
 # -- Modify accordingly if needed: directory path --
-WorkingDirectory=/home/scion/monitoring/2SMS/deployment/manager
-Environment="PATH=/home/scion/.local/bin:/home/scion/go/bin:/usr/lib/go-1.9/bin:/home/scion/bin:/home/scion/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin" "PYTHONPATH=/home/scion/go/src/github.com/scionproto/scion/python:/home/scion/go/src/github.com/scionproto/scion" "SC=/home/scion/go/src/github.com/scionproto/scion"
+WorkingDirectory=/home/_USER_/2SMS/deployment/manager
+Environment="PATH=/home/_USER_/.local/bin:/home/_USER_/go/bin:/usr/lib/go-1.9/bin:/home/_USER_/bin:/home/_USER_/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin" "PYTHONPATH=/home/_USER_/go/src/github.com/scionproto/scion/python:/home/_USER_/go/src/github.com/scionproto/scion" "SC=/home/_USER_/go/src/github.com/scionproto/scion"
 # -- Modify accordingly if needed: executable path and addresses --
-ExecStart=/home/scion/monitoring/2SMS/deployment/manager/manager -local 17-ffaa:0:1102,[192.33.93.196]:0 -manager.IP 192.33.93.196 --ports.management 10002 --ports.no-client-verif 10000 --ports.client-verif 10001
+ExecStart=/home/_USER_/2SMS/deployment/manager/manager -local _IA_,[_IP_]:0 -manager.IP _IP_ --ports.management 10002 --ports.no-client-verif 10000 --ports.client-verif 10001
 Restart=on-failure
-User=scion
+User=_USER_
 
 [Install]
 WantedBy=multi-user.target

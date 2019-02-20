@@ -1,54 +1,38 @@
+# Global settings
 global:
-  scrape_interval: 10s
-  scrape_timeout: 10s
-  evaluation_interval: 15s
+  scrape_interval: 1m   # Set default scrape interval for every job (job-specific interval will override this)
+
+# Alerting settings
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - localhost:9093  # Send firing alerts to an Alertmanager instance running at localhost on port 9093 (default port)
+
+# Alert rules settings
+rule_files:
+- alert_rules.yml # Load alert rules from the `alert_rules.yml` file
+
+# Scraping settings. Consists of a job per each target (unless there are replicated services)
 scrape_configs:
-- job_name: 17-ffaa:1:c5 127.0.0.1 cs
-  scrape_interval: 10s
-  scrape_timeout: 10s
-  metrics_path: /17-ffaa:1:c5/cs
-  scheme: http
+- job_name: Prometheus  # Monitor the Prometheus server itself. The HTTP endpoint is under /metrics (default path)
+  scrape_interval: 5s
+  scrape_timeout: 5s
   static_configs:
   - targets:
-    - 127.0.0.1:9199
-    labels:
-      AS: ffaa:1:c5
-      ISD: "17"
-      service: cs
-  proxy_url: http://127.0.0.1:9901
-- job_name: 17-ffaa:1:c5 127.0.0.1 ps
-  scrape_interval: 10s
-  scrape_timeout: 10s
-  metrics_path: /17-ffaa:1:c5/ps
-  scheme: http
+    - localhost:9090
+- job_name: alertmanager # Monitor the alermanager instance. Its HTTP endpoint is under /metrics (default path)
+  scrape_interval: 5s
+  scrape_timeout: 5s
   static_configs:
   - targets:
-    - 127.0.0.1:9199
-    labels:
-      AS: ffaa:1:c5
-      ISD: "17"
-      service: ps
-  proxy_url: http://127.0.0.1:9901
-- job_name: 17-ffaa:1:c5 127.0.0.1 br
-  scrape_interval: 10s
-  scrape_timeout: 10s
-  metrics_path: /17-ffaa:1:c5/br
-  scheme: http
-  static_configs:
-  - targets:
-    - 127.0.0.1:9199
-    labels:
-      AS: ffaa:1:c5
-      ISD: "17"
-      service: br
-  proxy_url: http://127.0.0.1:9901
-- job_name: 17-ffaa:1:c5 127.0.0.1 bs
-  metrics_path: /17-ffaa:1:c5/bs
-  static_configs:
-  - targets:
-    - 127.0.0.1:9199
-    labels:
-      AS: ffaa:1:c5
-      ISD: "17"
-      service: bs
-  proxy_url: http://127.0.0.1:9901
+    - localhost:9093
+
+# Remote write settings
+remote_write:
+- url: http://localhost:8086/api/v1/prom/write?db=prometheus # Send all scrape samples to an InfluxDB instance running at localhost on port 8086 (default port)
+
+# Remote read settings
+remote_read:
+- url: http://localhost:8086/api/v1/prom/read?db=prometheus # Load data from an InfluxDB instance running at localhost on port 8086 (default port) to answer queries (slow)
+
