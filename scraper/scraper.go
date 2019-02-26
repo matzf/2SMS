@@ -6,7 +6,6 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"time"
@@ -143,14 +142,11 @@ func initScraper() {
 			log.Fatal("No certificate found and no connection with manager. Please manually generate and upload a certificate for the csr.")
 		}
 	}
-	prometheusListenURL, err := url.Parse("http://127.0.0.1:" + prometheusListenPort + prometheusRoutePrefix)
-	if err != nil {
-		log.Fatalf("Couldn't parse Prometheus listen URL. Error is: %v", err)
-	}
+
 	configManager, err = prometheus.CreateConfigManager(
 		prometheusConfig,
-		"http://127.0.0.1:"+internalScrapePort,
-		prometheusListenURL,
+		"http://127.0.0.1:" + prometheusListenPort + prometheusRoutePrefix,
+		"http://127.0.0.1:" + internalScrapePort,
 		prometheusUpdateFrequency,
 		200,
 	)

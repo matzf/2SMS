@@ -3,16 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/netsec-ethz/2SMS/common"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
-	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type scraperProxyHandler struct {
@@ -57,17 +59,24 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		//remoteAddr := fmt.Sprintf("%s,[%s]:%s", ia, ip, port)
 		remoteAddr := fmt.Sprintf("%s,[%s]", ia, ip)
 		// Hack to have shttp working (remove once scion addresses can be used directly in the url)
-		remoteAddrUrl := strings.Join([]string{ia, ip, port}, "_")
-		scionutil.AddHost(remoteAddrUrl, remoteAddr)
+		remoteAddrID := strings.Join([]string{strings.Replace(ia, ":", "_", -1), ip}, "_")
+		scionutil.AddHost(remoteAddrID, remoteAddr)
+
+		requestURL := remoteAddrID + ":" + port + r.URL.Path
+		if _, err = url.ParseRequestURI(requestURL); err != nil {
+			log.Printf("Invalid URL to use to connect to SCION HTTP servers: %s. Error is: %v", requestURL, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		// Perform HTTP request using SCION client
-		resp, err = sph.forwardRequest(true, w, remoteAddrUrl+r.URL.Path, r)
+		resp, err = sph.forwardRequest(true, w, requestURL, r)
 
 		if err != nil {
-			log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", remoteAddrUrl+r.URL.Path, err)
+			log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", requestURL, err)
 		} else if resp.StatusCode == http.StatusNotFound {
 			// If we couldn't find the path then we don't need to try with IP because it will lead to the same result.
-			log.Printf("Failed: SCION/HTTPS request to %s. Path was not found (404).", remoteAddrUrl+r.URL.Path)
+			log.Printf("Failed: SCION/HTTPS request to %s. Path was not found (404).", requestURL)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

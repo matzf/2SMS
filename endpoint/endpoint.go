@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/netsec-ethz/2SMS/common"
 
@@ -224,8 +225,7 @@ func main() {
 	// SCION server
 	go func() {
 		log.Printf("Starting SCION server")
-
-		err = shttp.ListenAndServeSCION(local.String(), endpointCert, endpointPrivKey, &LocalHandler{"SCION HTTPS", localHTTPClient})
+		err = shttp.ListenAndServeSCION(strings.Replace(local.String(), " (UDP)", "", 1), endpointCert, endpointPrivKey, &LocalHandler{"SCION HTTPS", localHTTPClient})
 
 		if err != nil {
 			log.Printf("SCION HTTP server listening error: %v", err)

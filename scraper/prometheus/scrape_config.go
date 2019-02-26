@@ -1,12 +1,10 @@
 package prometheus
 
-import "net/url"
-
 type ScrapeConfig struct {
-	JobName		string
-	ScrapeInterval	string
-	ScrapeTimeout	string
-	MetricsPath		string
-	StaticConfigs	[]*StaticConfig
-	ProxyUrl		*url.URL
+	JobName		string		`yaml:"job_name"`
+	ScrapeInterval	string `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout	string `yaml:"scrape_timeout,omitempty"`
+	MetricsPath		string `yaml:"metrics_path,omitempty"`
+	StaticConfigs	[]*StaticConfig `yaml:"static_configs"`
+	ProxyUrl		string `yaml:"proxy_url,omitempty"`
 }

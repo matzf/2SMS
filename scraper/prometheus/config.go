@@ -6,12 +6,17 @@ type Config struct {
 	Global	map[string]string		`yaml:"global"`
 	RuleFiles []string				`yaml:"rule_files"`
 	Alerting AlertingConfig			`yaml:"alerting"`
-	ScrapeConfigs []*ScrapeConfig	`yaml:"scraper_configs"`
-	RemoteWrite map[string]string	`yaml:"remote_write"`
-	RemoteRead map[string]string	`yaml:"remote_read"`
+	ScrapeConfigs []*ScrapeConfig	`yaml:"scrape_configs"`
+	RemoteWrites []*RemoteWriteConfig	`yaml:"remote_write"`
+	RemoteReads []*RemoteReadConfig	`yaml:"remote_read"`
 }
 
 func (config *Config) ContainsTarget(target *types.Target) bool {
-	return true
-	// TODO
+	jobName := target.BuildJobName()
+	for _, job := range config.ScrapeConfigs {
+		if job.JobName == jobName {
+			return true
+		}
+	}
+	return false
 }

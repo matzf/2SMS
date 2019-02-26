@@ -172,7 +172,7 @@ func addTargetToScrapers(target *types.Target, byts []byte) []types.Scraper {
 
 // byts is the json binary encoding of the target, used just to avoid encoding/decoding multiple times
 func addTargetToScraper(byts []byte, scraper *types.Scraper) {
-	resp, err := httpsClient.Post("https://"+scraper.IP+":"+scraper.ManagePort+"/target", "application/json", bytes.NewReader(byts))
+	resp, err := httpsClient.Post("https://"+scraper.IP+":"+scraper.ManagePort+"/targets", "application/json", bytes.NewReader(byts))
 	if err != nil {
 		log.Println("Error in adding scraper target:", err)
 		return
@@ -188,7 +188,7 @@ func notifyRemovedMapping(w http.ResponseWriter, r *http.Request) {
 	log.Println("Notify removed mapping received")
 	// Remove target from each scraper
 	for _, scr := range getScrapers() {
-		req, err := http.NewRequest("DELETE", "https://"+scr.IP+":"+scr.ManagePort+"/target", r.Body)
+		req, err := http.NewRequest("DELETE", "https://"+scr.IP+":"+scr.ManagePort+"/targets", r.Body)
 		resp, err := httpsClient.Do(req)
 		if err != nil {
 			log.Println("Error in removing scraper target:", err)

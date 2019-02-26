@@ -1,6 +1,5 @@
 package prometheus
 
 type AlertingConfig struct {
-	Âlertmanagers	[]StaticConfig
-	Path_prefix		string
+	Alertmanagers	[]*AlertmanagerConfig `yaml:",omitempty"`
 }

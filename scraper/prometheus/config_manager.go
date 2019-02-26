@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"time"
@@ -17,7 +16,7 @@ import (
 
 type ConfigManager struct {
 	configFile    string	// Path to the prometheus configuration file
-	scraperProxyURL	*url.URL	// Proxy URL from the Prometheus server to the Scraper component
+	scraperProxyURL	string	// Proxy URL from the Prometheus server to the Scraper component
 	promListenURL string	// Base URL where the Prometheus API is exposed
 	addChannel chan *types.Target
 	removeChannel chan *types.Target
@@ -25,7 +24,7 @@ type ConfigManager struct {
 	config 		*Config
 }
 
-func CreateConfigManager(configFilePath, promListenURL string, scraperProxyURL *url.URL, updateFrequency, updatesBufferSize int) (*ConfigManager, error) {
+func CreateConfigManager(configFilePath, promListenURL, scraperProxyURL string, updateFrequency, updatesBufferSize int) (*ConfigManager, error) {
 	configManager := ConfigManager{
 		configFile: configFilePath,
 		scraperProxyURL: scraperProxyURL,
@@ -118,7 +117,7 @@ func (cm *ConfigManager) RemoveTargets(targets []types.Target) {
 }
 
 func (cm *ConfigManager) ReloadPrometheus() error {
-	resp, err := http.Post("http://"+cm.promListenURL+"/-/reload", "application/json", nil)
+	resp, err := http.Post(cm.promListenURL+"/-/reload", "application/json", nil)
 	if err != nil {
 		return errors.New(fmt.Sprintf("ConfigManger: Failed executing reloading POST request. Error is: %v", err))
 	}
