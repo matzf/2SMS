@@ -13,7 +13,7 @@ TimeoutStartSec=30
 # -- Modify accordingly if needed: socket path --
 #ExecStartPre=/bin/bash -c '/usr/bin/killall prometheus; while [ ! -S /run/shm/sciond/default.sock ]; do /bin/sleep 1; done'
 # -- Modify accordingly if needed: executable path and addresses --
-ExecStart=/home/_USER_/2SMS/deployment/scraper/scraper -local _IA_,[_IP_]:0 -scraper.IP _IP_ -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP _MANAGER_IP_ -manager.unverif-port 10000 -manager.verif-port 10001 --scraper.prometheus.retention=_PROMETHEUS_RETENTION_ --scraper.prometheus.url=_EXTERNAL_URL_ --scraper.prometheus.prefix=_PATH_PREFIX_ --scraper.prometheus.address=_PROMETHEUS_ADDRESS_
+ExecStart=/home/_USER_/2SMS/deployment/scraper/scraper -local _IA_,[_IP_]:0 -scraper.IP _IP_ -scraper.ports.management 9900 -scraper.ports.local 9999 -manager.IP _MANAGER_IP_ -manager.unverif-port 10000 -manager.verif-port 10001 --scraper.prometheus.retention=_PROMETHEUS_RETENTION_ --scraper.prometheus.url=_EXTERNAL_URL_ --scraper.prometheus.prefix=_PATH_PREFIX_ --scraper.prometheus.port=_PROMETHEUS_PORT_
 Restart=on-failure
 User=_USER_
 

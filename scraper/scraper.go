@@ -30,6 +30,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+const prometheusBindAddress = "0.0.0.0"
+
 var (
 	prometheusUpdateQueue     int
 	prometheusUpdateFrequency int
@@ -51,7 +53,7 @@ var (
 	managerIP                 string
 	managerUnverifPort        string
 	managerVerifPort          string
-	prometheusListenAddress   string
+	prometheusListenPort      string
 	prometheusRetention       string
 	prometheusExternalURL     string
 	prometheusRoutePrefix     string
@@ -82,9 +84,9 @@ func initScraper() {
 	flag.StringVar(&prometheusOutFile, "prometheus.out", "prometheus/out", "file where prometheus output is redirected")
 	flag.StringVar(&prometheusExec, "scraper.prometheus.exec", "prometheus/prometheus", "prometheus executable")
 	flag.StringVar(&prometheusConfig, "scraper.prometheus.config", "prometheus/prometheus.yml", "prometheus configuration file")
-	flag.StringVar(&prometheusListenAddress, "scraper.prometheus.address", "127.0.0.1:9090", "web.listen-address parameter for prometheus")
+	flag.StringVar(&prometheusListenPort, "scraper.prometheus.port", "9090", "port where prometheus listens to")
 	flag.StringVar(&prometheusRetention, "scraper.prometheus.retention", "15d", "retention policy for prometheus server")
-	flag.StringVar(&prometheusExternalURL, "scraper.prometheus.url", "http://"+prometheusListenAddress, "external url for prometheus server")
+	flag.StringVar(&prometheusExternalURL, "scraper.prometheus.url", "http://"+prometheusBindAddress+":"+prometheusListenPort, "external url for prometheus server")
 	flag.StringVar(&prometheusRoutePrefix, "scraper.prometheus.prefix", "", "route prefix for prometheus server")
 	flag.BoolVar(&prometheusEnableAdminAPI, "scraper.prometheus.admin", false, "admin api for prometheus server")
 	flag.StringVar(&prometheusTSDBPath, "scraper.prometheus.tsdb", "data/", "tsdb path for prometheus server")
@@ -141,15 +143,13 @@ func initScraper() {
 			log.Fatal("No certificate found and no connection with manager. Please manually generate and upload a certificate for the csr.")
 		}
 	}
-
-	prometheusListenURL, err := url.Parse("http://" + prometheusListenAddress + prometheusRoutePrefix)
+	prometheusListenURL, err := url.Parse("http://127.0.0.1:" + prometheusListenPort + prometheusRoutePrefix)
 	if err != nil {
 		log.Fatalf("Couldn't parse Prometheus listen URL. Error is: %v", err)
 	}
-
 	configManager, err = prometheus.CreateConfigManager(
 		prometheusConfig,
-		"http://127.0.0.1:" + internalScrapePort,
+		"http://127.0.0.1:"+internalScrapePort,
 		prometheusListenURL,
 		prometheusUpdateFrequency,
 		200,
@@ -190,15 +190,12 @@ func main() {
 	var proc *os.Process
 	go func() {
 		cmd := exec.Command("bash", "-c", fmt.Sprintf(
-			"%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention=%s --web.enable-lifecycle --web.listen-address=%s --web.external-url=%s --web.route-prefix=%s &> %s",
-			prometheusExec,
-			prometheusConfig,
-			prometheusTSDBPath,
-			prometheusRetention,
-			prometheusListenAddress,
-			prometheusExternalURL,
-			prometheusRoutePrefix,
-			prometheusOutFile,
+			"%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention=%s "+
+				"--web.enable-lifecycle --web.listen-address=%s --web.external-url=%s "+
+				"--web.route-prefix=%s &> %s",
+			prometheusExec, prometheusConfig, prometheusTSDBPath, prometheusRetention,
+			prometheusBindAddress+":"+prometheusListenPort, prometheusExternalURL,
+			prometheusRoutePrefix, prometheusOutFile,
 		))
 
 		err := cmd.Start()

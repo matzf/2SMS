@@ -16,7 +16,11 @@ MANAGER_IP='192.33.93.196'
 prometheus_retention="10d"
 path_prefix="\/prometheus" # Escaped for sed
 external_url="https:\/\/monitoring.scionlab.org$path_prefix" # Escaped for sed
-prometheus_address="10.10.10.5:9090"
+prometheus_port="9090"
+# allow grafana to query the prometheus server (to get the data):
+grafana_IP="192.33.93.196"
+# when accessing the prometheus server via web, we go thru Caddy. Allow that:
+frontend_IP="192.33.93.196"
 ### ------------------------------------------------------ ###
 IP=$MANAGER_IP
 [ -f $SC/gen/ia ] && IA=$(cat $SC/gen/ia | sed 's/_/:/g') || { echo "Missing $SC/gen/ia file"; exit 1; }
@@ -56,7 +60,14 @@ chmod +x prometheus
 cd ..
 
 # Modify service file with correct SCION address and IP parameters
-sed -i -r "s/_USER_/$USER/g;s/_MANAGER_IP_/$MANAGER_IP/g;s/_IA_/$IA/g;s/_IP_/$IP/g;s/_PROMETHEUS_RETENTION_/$prometheus_retention/g;s/_EXTERNAL_URL_/$external_url/g;s/_PATH_PREFIX_/$path_prefix/g;s/_PROMETHEUS_ADDRESS_/$prometheus_address/g" $SERVICE_FILE_NAME
+sed -i -r "s/_USER_/$USER/g;s/_MANAGER_IP_/$MANAGER_IP/g;s/_IA_/$IA/g;s/_IP_/$IP/g;s/_PROMETHEUS_RETENTION_/$prometheus_retention/g;s/_EXTERNAL_URL_/$external_url/g;s/_PATH_PREFIX_/$path_prefix/g;s/_PROMETHEUS_PORT_/$prometheus_port/g" $SERVICE_FILE_NAME
+
+# set firewall rules to block prometheus but from the frontend (where we run grafana, etc)
+sudo iptables -A INPUT -p tcp --dport $prometheus_port -s $grafana_IP -j ACCEPT
+if [ "$grafana_IP" != "$frontend_IP" ]; then
+    sudo iptables -A INPUT -p tcp --dport $prometheus_port -s $frontend_IP -j ACCEPT
+fi
+sudo iptables -A INPUT -p tcp --dport $prometheus_port -j DROP
 
 # Move service file to the right place
 sudo mv $SERVICE_FILE_NAME /etc/systemd/system/
