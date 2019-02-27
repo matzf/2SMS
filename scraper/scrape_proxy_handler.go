@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -56,18 +55,14 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	// If SQUIC is enabled try first with it
 	if enableSQUIC {
-		//remoteAddr := fmt.Sprintf("%s,[%s]:%s", ia, ip, port)
 		remoteAddr := fmt.Sprintf("%s,[%s]", ia, ip)
 		// Hack to have shttp working (remove once scion addresses can be used directly in the url)
+		// Replacing all colons in `ia` is necessary otherwise net.splitHostPort will return an incorrect result
 		remoteAddrID := strings.Join([]string{strings.Replace(ia, ":", "_", -1), ip}, "_")
 		scionutil.AddHost(remoteAddrID, remoteAddr)
 
+		// This URL doesn't have to be safe because it is not used for DNS but only for scionutil.GetHostByName in scion-apps/lib/shttp/transport.go
 		requestURL := remoteAddrID + ":" + port + r.URL.Path
-		if _, err = url.ParseRequestURI(requestURL); err != nil {
-			log.Printf("Invalid URL to use to connect to SCION HTTP servers: %s. Error is: %v", requestURL, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 
 		// Perform HTTP request using SCION client
 		resp, err = sph.forwardRequest(true, w, requestURL, r)
