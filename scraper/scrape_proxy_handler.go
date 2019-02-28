@@ -19,19 +19,17 @@ import (
 type scraperProxyHandler struct {
 	ipClient    *http.Client
 	scionClient *http.Client
-	dnsMap      map[string]*snet.Addr
 	enableQUIC  bool
 }
 
 func CreateScraperProxyHandler(scraperCACertsDir, scraperCert, scraperPrivKey string, localAddress *snet.Addr, enableQUIC bool) *scraperProxyHandler {
 	ipClient := common.CreateHttpsClient(scraperCACertsDir, scraperCert, scraperPrivKey)
-	dnsMap := make(map[string]*snet.Addr)
 	scionClient := &http.Client{
 		Transport: &shttp.Transport{
 			LAddr: localAddress,
 		},
 	}
-	return &scraperProxyHandler{ipClient: ipClient, scionClient: scionClient, enableQUIC: enableQUIC, dnsMap: dnsMap}
+	return &scraperProxyHandler{ipClient: ipClient, scionClient: scionClient, enableQUIC: enableQUIC}
 }
 
 // When receiving an HTTP request try to forward it to its destination using HTTPS over SCION. Would an error occur
