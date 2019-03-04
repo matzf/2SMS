@@ -12,15 +12,15 @@ SERVICE_FILE_LOCATION=/etc/systemd/system
 monitoring_download_page="monitoring.scionlab.org/downloads/public/scraper"
 ### THE FOLLOWING PARAMETERS MAY NEED TO BE ADAPTED TO YOUR SETTING ###
 ### ------------------------------------------------------ ###
-MANAGER_IP='192.33.93.196'
+MANAGER_IP='129.132.85.121'
 prometheus_retention="10d"
 path_prefix="\/prometheus" # Escaped for sed
 external_url="https:\/\/monitoring.scionlab.org$path_prefix" # Escaped for sed
 prometheus_port="9090"
 # allow grafana to query the prometheus server (to get the data):
-grafana_IP="192.33.93.196"
+grafana_IP="129.132.85.121"
 # when accessing the prometheus server via web, we go thru Caddy. Allow that:
-frontend_IP="192.33.93.196"
+frontend_IP="129.132.85.121"
 ### ------------------------------------------------------ ###
 IP=$MANAGER_IP
 [ -f $SC/gen/ia ] && IA=$(cat $SC/gen/ia | sed 's/_/:/g') || { echo "Missing $SC/gen/ia file"; exit 1; }

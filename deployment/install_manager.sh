@@ -9,7 +9,7 @@ INSTALLATION_PATH="$HOME/2SMS/deployment/manager"
 DEFAULT_SOCKET=/run/shm/sciond/default.sock
 SERVICE_FILE_NAME=2SMSmanager.service
 SERVICE_FILE_LOCATION=/etc/systemd/system
-IP='192.33.93.196'
+IP='129.132.85.121'
 monitoring_download_page="monitoring.scionlab.org/downloads/public/manager"
 [ -f $SC/gen/ia ] && IA=$(cat $SC/gen/ia | sed 's/_/:/g') || { echo "Missing $SC/gen/ia file"; exit 1; }
 

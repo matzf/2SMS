@@ -1,5 +1,5 @@
 [Unit]
-Description=Scion rm -rf ~g System Manager
+Description=Scion Monitoring System Manager
 After=network.target
 
 [Service]
