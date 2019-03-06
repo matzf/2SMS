@@ -7,15 +7,16 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/netsec-ethz/2SMS/common"
-	"github.com/netsec-ethz/2SMS/common/types"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/netsec-ethz/2SMS/common"
+	"github.com/netsec-ethz/2SMS/common/types"
 )
 
 // Requires a CSR, verifies it's validity and, if it is allowed, generates and returns a certificate.
@@ -60,7 +61,7 @@ func requestCert(w http.ResponseWriter, r *http.Request) {
 	crtFile := approvedCertsDir + "/" + OU[0] + "_" + ip + ".crt"
 	// If certificate for csr already exists, just return it
 	if common.FileExists(crtFile) {
-		log.Printf("Certificate for %s already exists\n", r.Host)
+		log.Printf("Certificate for %s already exists\n", ip)
 		byts, _ := ioutil.ReadFile(crtFile)
 		// Encode it to base64 and write it to the response buffer
 		data := make([]byte, base64.StdEncoding.EncodedLen(len(byts)))

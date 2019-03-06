@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
 
 	"github.com/netsec-ethz/2SMS/common"
 
@@ -123,6 +124,7 @@ func initialize_endpoint() {
 
 	var privKey *ecdsa.PrivateKey
 	if !common.FileExists(endpointPrivKey) {
+		log.Printf("No private key found. Generating one in %s", endpointPrivKey)
 		// Generate a new key and write it to file
 		privKey, _ = common.GenECDSAKey("P256")
 		bts, _ := x509.MarshalECPrivateKey(privKey)
@@ -140,6 +142,7 @@ func initialize_endpoint() {
 	// Request certificate to the manager
 	if !common.FileExists(endpointCert) {
 		if managerIP != "" {
+			log.Printf("Certificate not found on %s. Requesting one.", endpointCert)
 			common.RequestAndObtainCert(caCertsDir, managerIP, managerUnverifPort, endpointCert, endpointCSR, "Endpoint", endpointIP)
 		} else {
 			log.Fatal("No certificate found and no connection with manager. Please manually generate and upload a certificate for the csr.")
@@ -155,10 +158,8 @@ func initialize_endpoint() {
 	if err != nil {
 		log.Fatal("Failed initializing internal mappings:", err)
 	}
-
 	httpsClient = common.CreateHttpsClient(caCertsDir, endpointCert, endpointPrivKey)
 	localHTTPClient = &http.Client{}
-
 	// Initialize Access Controller
 	if !common.FileExists(authModelFile) {
 		log.Fatal("Casbin authorization model file (" + authModelFile + ") doesn't exist.")
@@ -279,7 +280,7 @@ func main() {
 
 type LocalHandler struct {
 	clientType string
-	client   *http.Client
+	client     *http.Client
 }
 
 // Redirects to the right port on localhost based on request path and configured mapping

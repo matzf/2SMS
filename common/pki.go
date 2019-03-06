@@ -6,10 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/netsec-ethz/2SMS/common/types"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"regexp"
 	"sort"
 	"time"
+
+	"github.com/netsec-ethz/2SMS/common/types"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 )
 
 func getSigningKey(IA addr.IA) []byte {
@@ -103,8 +104,9 @@ func RequestAndObtainCert(caCertsDir, managerAddress, managerPort, certFile, csr
 	base64.StdEncoding.Encode(data, bts)
 	// Repeatedly try to request the certificate
 	for !FileExists(certFile) {
-		log.Println("Requesting certificate")
-		resp, err := client.Post("https://"+managerAddress+":"+managerPort+"/certificate/request", "application/base64", bytes.NewBuffer(data))
+		url := "https://" + managerAddress + ":" + managerPort + "/certificate/request"
+		log.Printf("Requesting certificate (POST to %s)", url)
+		resp, err := client.Post(url, "application/base64", bytes.NewBuffer(data))
 		if err != nil {
 			log.Fatal(err)
 		}

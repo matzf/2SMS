@@ -33,15 +33,13 @@ func CreateHttpsClient(caCertDir, clientCert, clientPrivKey string) *http.Client
 	// Load server certificates
 	serverCertPool, err := NewCertPoolFromDir(caCertDir)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Could not build cert pool: %v", err)
 	}
-
 	// Load client cert and key
 	cert, err := tls.LoadX509KeyPair(clientCert, clientPrivKey)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error loading pub/priv pair from %s:%v", clientCert, err)
 	}
-
 	// Create HTTPS client
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -51,7 +49,6 @@ func CreateHttpsClient(caCertDir, clientCert, clientPrivKey string) *http.Client
 			},
 		},
 	}
-
 	return client
 }
 
