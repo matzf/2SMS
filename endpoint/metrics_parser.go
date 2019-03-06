@@ -27,19 +27,19 @@ func DecodeResponseBody(resp *http.Response) []*common.MetricFamily {
 			metrics = append(metrics, mf)
 		}
 	} else {
-	// TODO: removing these prometheus dependencies seems quite hard so for the moment just don't support the fallback
+		// TODO: removing these prometheus dependencies seems quite hard so for the moment just don't support the fallback
 		log.Printf("MetricsParser: %s Media Type is not supported, decoding failed.", mediaType)
-	//	// We could do further content-type checks here, but the
-	//	// fallback for now will anyway be the text format
-	//	// version 0.0.4, so just go for it and see if it works.
-	//	var parser expfmt.TextParser
-	//	metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
-	//	if err != nil {
-	//		//return fmt.Errorf("reading text format failed: %v", err)
-	//	}
-	//	for _, mf := range metricFamilies {
-	//		metrics = append(metrics, mf)
-	//	}
+		//	// We could do further content-type checks here, but the
+		//	// fallback for now will anyway be the text format
+		//	// version 0.0.4, so just go for it and see if it works.
+		//	var parser expfmt.TextParser
+		//	metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
+		//	if err != nil {
+		//		//return fmt.Errorf("reading text format failed: %v", err)
+		//	}
+		//	for _, mf := range metricFamilies {
+		//		metrics = append(metrics, mf)
+		//	}
 	}
 	return metrics
 }
