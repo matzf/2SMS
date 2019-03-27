@@ -261,16 +261,14 @@
 			"revisionTime": "2016-04-24T11:30:07Z"
 		},
 		{
-			"checksumSHA1": "/CGpKuEq96RUMaRZhPgGaZ82bB0=",
+			"checksumSHA1": "aTl0eTEuxfbgAlwYHXGILcHHZTs=",
 			"path": "github.com/netsec-ethz/scion-apps/lib/scionutil",
-			"revision": "87c9760d4863e225f358617c983bca9e67e687f7",
-			"revisionTime": "2019-02-15T15:48:15Z"
+			"revision": "f62c8b69df3cef78dc62a2cfe82d6339d4882906"
 		},
 		{
-			"checksumSHA1": "QQTZfjwkPnQ0e1tgaQ4bjkT5TSI=",
+			"checksumSHA1": "/Y3PL8T9upUZiRnA9qWnG7bX/PE=",
 			"path": "github.com/netsec-ethz/scion-apps/lib/shttp",
-			"revision": "87c9760d4863e225f358617c983bca9e67e687f7",
-			"revisionTime": "2019-02-15T15:48:15Z"
+			"revision": "f62c8b69df3cef78dc62a2cfe82d6339d4882906"
 		},
 		{
 			"checksumSHA1": "W8mzTLRjnooGtHwWaxSX8eq8hlY=",
