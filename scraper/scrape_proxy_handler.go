@@ -17,19 +17,14 @@ import (
 )
 
 type scraperProxyHandler struct {
-	ipClient    *http.Client
-	scionClient *http.Client
-	enableQUIC  bool
+	ipClient     *http.Client
+	localAddress *snet.Addr
+	enableQUIC   bool
 }
 
 func CreateScraperProxyHandler(scraperCACertsDir, scraperCert, scraperPrivKey string, localAddress *snet.Addr, enableQUIC bool) *scraperProxyHandler {
 	ipClient := common.CreateHttpsClient(scraperCACertsDir, scraperCert, scraperPrivKey)
-	scionClient := &http.Client{
-		Transport: &shttp.Transport{
-			LAddr: localAddress,
-		},
-	}
-	return &scraperProxyHandler{ipClient: ipClient, scionClient: scionClient, enableQUIC: enableQUIC}
+	return &scraperProxyHandler{ipClient: ipClient, localAddress: localAddress, enableQUIC: enableQUIC}
 }
 
 // When receiving an HTTP request try to forward it to its destination using HTTPS over SCION. Would an error occur
@@ -63,7 +58,17 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		requestURL := remoteAddrID + ":" + port + r.URL.Path
 
 		// Perform HTTP request using SCION client
-		resp, err = sph.forwardRequest(true, w, requestURL, r)
+		shttpClient := &http.Client{
+			Transport: &shttp.Transport{
+				LAddr: sph.localAddress,
+			},
+		}
+		resp, err = sph.forwardRequest(shttpClient, w, requestURL, r)
+		t, _ := shttpClient.Transport.(*shttp.Transport)
+		e := t.Close()
+		if e != nil {
+			log.Printf("Failed to close connection:", e)
+		}
 
 		if err != nil {
 			log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", requestURL, err)
@@ -88,7 +93,7 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		host := fmt.Sprintf("%s:%d", ip, httpPort+1)
 
 		// Perform HTTP request using IP client
-		resp, err = sph.forwardRequest(false, w, host+r.URL.Path, r)
+		resp, err = sph.forwardRequest(sph.ipClient, w, host+r.URL.Path, r)
 
 		if err != nil {
 			log.Printf("Failed: IP/HTTPS request to %s. Error is: %v", host+r.URL.Path, err)
@@ -117,11 +122,7 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (sph *scraperProxyHandler) forwardRequest(overSCION bool, w http.ResponseWriter, url string, r *http.Request) (resp *http.Response, err error) {
-	client := sph.scionClient
-	if !overSCION {
-		client = sph.ipClient
-	}
+func (sph *scraperProxyHandler) forwardRequest(client *http.Client, w http.ResponseWriter, url string, r *http.Request) (resp *http.Response, err error) {
 	if r.Method == http.MethodGet {
 		resp, err = client.Get(fmt.Sprintf("https://%s", url))
 	} else if r.Method == http.MethodPost {
