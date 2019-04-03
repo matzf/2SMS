@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/2SMS/common"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
@@ -61,14 +63,14 @@ func (sph *scraperProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		shttpClient := &http.Client{
 			Transport: &shttp.Transport{
 				LAddr: sph.localAddress,
+				QuicConfig: &quic.Config{
+					HandshakeTimeout: 1 * time.Second,
+				},
 			},
 		}
 		resp, err = sph.forwardRequest(shttpClient, w, requestURL, r)
 		t, _ := shttpClient.Transport.(*shttp.Transport)
-		e := t.Close()
-		if e != nil {
-			log.Printf("Failed to close connection:", e)
-		}
+		defer t.Close()
 
 		if err != nil {
 			log.Printf("Failed: SCION/HTTPS request to %s. Error is: %v", requestURL, err)
